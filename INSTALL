@@ -1,0 +1,192 @@
+=== CMake Build Tutorial ===
+
+This file is a simple tutorial for building with cmake, and also an indicator of
+the conventions used in my cmake projects.  It is aimed as a quick way to get 
+you familiar with cmake and provide some of the requisite knowledge to fix any
+problems which might arise.  I mention autotools as a comparison, but knowledge
+of it is not expected.
+
+== Contents ==
+
+1. Links
+   Extra generic cmake help resources.
+2. Initialisation
+   Initialising the build system.
+3. Configuration
+   Setting library location, enabling/disabling features etc.
+4. Fixing Configuration Problems
+   What to do when it breaks.
+5. Building
+   Building executables and anything else which the build system does.
+6. Cross-Compiling
+   Particular information about compiling for a different target system.
+7. Installing
+   Standard installation targets and some CPack information (for .deb etc.)
+
+== Links ==
+
+The following links provide a more general view of CMake.
+
+  http://www.cmake.org/cmake/help/runningcmake.html - simple intro.
+  http://www.cmake.org/cmake/help/cmake2.6docs.html - cmake language docs; 
+    mostly for developers but it could help if something breaks.
+  http://www.cmake.org/Wiki/CMake - cmake wiki.
+  http://www.cmake.org/ - official site.
+
+== Initialisation ==
+
+Unlike autotools, CMake is principally designed for out-of-source builds.  In 
+fact You will often find that in-source builds will not work as expected.  
+Therefore: pick a directory anywhere outside the source directory and run the 
+command:
+
+  cmake -G "Your generator" path/to/src
+
+CMake is a `lazy' build system.  It outputs files which are used by some other
+program to actually build the program.  The generator is the program which will
+be used, for example "Unix Makefiles".  The available generators vary depending
+on the installed build of cmake.
+
+Be aware that cmake doesn't stop immediately if there are errors, so make sure 
+to scroll up to see any errors.
+
+If you know exactly what configuration variables are necessary then you can 
+define them in this command:
+
+  cmake -DVAR=value path/to/src
+
+Note that if you wish to change compilers or any part of the toolchain, then 
+those changes *must* be in this step.  Subsequent toolchain changes will only 
+work if you wipe the binary directory first.  There are several useful 
+variables regarding the toolchain which are noted later in this document under
+`cross-compiling'.
+
+== Configuration ==
+
+Again unlike autotools, there is no ./configure script.  Instead either the 
+cmake with -D options is used, ccmake curses GUI, or CMakeSetup.exe on win32.
+Usage should be obvious, and descriptions of the variables are available in
+the status bar.
+
+In my projects, I always use WANT_x variables for boolean variables which 
+take the role of autotools' --enable-x and some of --with-x.  Expanded 
+configuration variables which affect the behaviour of the WANT are usually
+prefixed by the name of the want.  For example, for WANT_DOCS, there may be a 
+DOCS_GENERATOR string.  On rare occasions, enabling a WANT might cause further
+dependencies to be activated.  It is therefore advisable to configure the
+WANTs before setting the NOTFOUNDs.
+
+Advanced mode is used for specifying the locations of things which are not 
+detected by the build system, for example if you have a newer version of 
+something stored in ~/.  Look for variables which are suffixed -NOTFOUND which 
+should not be.
+
+The *FLAGS variables are important in this step.  You may want to specify
+additional optimisation and/or debug options.  Which variable is used depends
+on the CMAKE_BUILD_TYPE (which you also should edit).  Typically, the build 
+type `Release' is what is required.  Leaving the build type empty will sometimes
+result in trace code used for developing being included and will often result
+in research code or unit tests which are known to fail.
+
+Note: when you have finished configuring ccmake, remember to press `c' to
+commit those changes!
+
+So to summarise: 
+- use ccmake GUI, CMakeSetup.exe GUI or cmake -DVAR=val CLI tools.
+- in the first setup command, make sure the toolchain is set correctly because
+  it cannot be changed later.
+- set CMAKE_BUILD_TYPE to Release or RelWithDebInfo (unless you're hacking on 
+  it).
+- add anything to *FLAGS you want, especially if your compiler is not recognised
+  this is always necessary.
+- set whichever WANT_x you want.
+
+== Fixing Configuration Problems ==
+
+For a simple form of introspection, run the following commands:
+
+  cmake -LH path/to/bindir
+  cmake -LAH path/to/bindir
+
+These will list the existing variables.  -H means print the help text for each
+variable, and -A means also print `advanced' variables.  Note that some 
+variables are automatically set up by cmake so they only have a generic 
+description.
+
+If some things are missing, in the build (headers, binaries, libraries...) then
+try this command:
+
+  cmake -LAH path/to/bindir | grep -B 1 "\(LIB\\|EXE\\|HAVE\)" \
+    | grep -B 1 "\(=$\|NOTFOUND\)"
+
+The second grep restricts the output to only missing variables.  Note that the 
+first grep relies on my own conventions.  All my dependencies are in x_LIB or
+x_EXE or HAVE_x (for headers).
+
+In the case of HAVE_x values, it will either require an addition to the *FLAGS
+variables to add an include directory, or to patch the source which is looks
+for the header.
+
+If you would like to see what is going on internally, grep for 'option' for 
+the boolean WANTs and CACHE for the string-like variables.
+
+== Building ==
+
+As mentioned before, use the generator you selected to build the project.  The
+makefile generator provides the standard targets:
+
+  make all
+  make install
+
+Note that sometimes install targets do not recognise build dependencies 
+correctly so it is usually necessary to run make all before make install.
+
+Also note that there can be other targets added, and information about these
+is typically printed during the initial configure step.
+
+== Cross-Compiling ==
+
+All my projects which run on multiple platforms are designed to be cross-
+compiled and cmake makes this pretty easy.  You must define a toolchain file
+which explicitly sets the compiler and linker data.  This is documented on the
+cmake wiki, here:
+
+  http://www.cmake.org/Wiki/CMake_Cross_Compiling
+
+You must *initialise* the cmake cache with:
+
+  cmake -DCMAKE_TOOLCHAIN_FILE=whatever path/to/srcdir/
+
+CMake's implementation prevents the compiler cannot be changed retroactively at 
+this time.
+
+Note that the toolchain file is just a collection of set() commands which 
+overwrite the various variables.  Therefore you may also define locations of 
+libraries and programs in this file, though it is not explicitly mentioned that 
+this is OK.  Some library parts of cmake which do not anticipate this might 
+overwrite some variables, however this seems to be very rare.  
+
+The toolchain file can be used as a persistent set of defaults for all your 
+cmake builds in this way.
+
+== Installing ==
+
+There are two methods of installation: cpack and the generator.  The generator 
+uses the standard way of installing, for example `make install'.  CPack is more 
+advanced and can produce binary packages (also via the generator).  The packages
+are built using the generator target `package'.  
+
+Using `make package_source' for a source tarball is also available, but this is 
+a poor substitute for autotool's make distcheck and is not recommended unless 
+you heavily script it; for example, it will simply tar the entire source 
+directory, which necessitates that you somehow create a `clean' source tree to 
+make the package.
+
+You will usually need to define some CMake variables to get CPack to generate 
+the right packages.  They are of the form CMAKE_BINARY_x where x is one of TGZ,
+TBZ, RPM, DEB, and some others.  See here for more:
+
+  http://www.cmake.org/Wiki/CMake:CPackPackageGenerators
+
+You might also want to look into using the program `checkinstall', which will 
+turn an install script like `make install' into a deb or rpm.

@@ -1,0 +1,11 @@
+Tune is a simple command-line tool for generating sine waves of a given note
+or frequency it uses SDL to output and can dump the raw samples to a file.  
+Not much more to say :)
+
+Convert raw samples like:
+
+  aplay -c 1 -f S16_[LE|BE] -r 44100 sinewave.raw
+
+And encode them with ffmpeg:
+
+  ffmpeg -f u16le -acodec pcm_s16le -i sinewave.raw -acodec pcm_s16le -ac 1 output.wav
