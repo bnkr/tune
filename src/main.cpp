@@ -20,6 +20,16 @@
 
 #include <boost/thread.hpp>
 
+// TODO:
+//   look at the manpage for stuff I need to support.  The major one is
+//   using frequencies directly as notes, especially with --start.
+
+// TODO:
+//   a handy thing would be an --offset parameter which gives a frequency
+//   skew for when the tuning is slightly off.  Problem is it's logarithmic
+//   so I don't know it... I guess you need to give concert pitch version
+//   of A since we work out all our notes from that?
+
 // TODO: monitor properly
 bool finished = false;
 boost::mutex finished_mutex;

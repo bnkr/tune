@@ -5,15 +5,93 @@
 tune \- sine wave generator for playing musical notes and other frequencies.
 .SH SYNOPSIS
 .LP
-\fBtune\fR \fICOMMAND\fR \fI[OPTION]\fR... \fI[NOTE]\fR...
+\fBtune\fR \fI[OPTION]\fR... \fI[NOTE]\fR...
 .SH DESCRIPTION
 .LP
-Blah
+This program generates sine waves of musical notes or specific frequencies.  
+There is not much more to say about it.  It uses SDL to output to your sound 
+card.
+.LP
+Specify notes using their letter, a floating point frequency.  The following
+example plays an A sharp 3 octaves above concert pitch octave and loops 
+forever.
+
+.RS 4
+.nf
+$ tune -l A#3
+.fi
+.RE
 
 .SH OPTIONS
 .TP
-\fB-h\fR, \fB--help\fR
-Print the help and usage and exit.
+\fB-h\fR, \fB--help\fR          This message and quit.
+
+.TP
+\fB-v\fR, \fB--verbose\fR 
+Be verbose.
+
+.TP
+\fB-t\fR, \fB--time\fR=\fIMILISECONDS\fR 
+Time for each note in miliseconds.  Defaults: 200.  Use a number <= 0 to play
+the note forever.
+
+.TP
+\fB-l\fR, \fB--loop\fR 
+Loop playing the sequence of notes.  If you chose multiple notes with infinite 
+duration, then pressing enter will move to the next one.
+
+.TP
+\fB-D\fR, \fB--dump\fR=\fIFILE\fR 
+Dump raw samples to a file.  These can be played with \fBaplay(1)\fR or 
+transcoded with \fBffmpeg(1)\fR and others.  See the dump file section.
+
+
+.TP
+\fB-s\fR, \fB--start\fR=\fINOTE\fR 
+Note name or frequency to start at (then use -d).
+
+.TP
+\fB-d\fR, \fB--distance\fR=\fIHALF_STEPS\fR 
+Half notes between notes starting from -s, --start.  This is intended to tune 
+an instrument.  For example, a guitar's open string notes coudl be enumerated 
+with tune -s E -d 8.  Default: 8
+
+.TP
+\fB--pause\fR=\fIMILISECONDS\fR
+Milisecond pause time between notes.  Default: 50.
+
+.TP
+\fB--rate\fR=\fIHERTZ\fR
+Sample rate.  Default: 44100.
+
+.TP
+\fB--channels\fR=\fINUM\fR
+Channels in the sample (1, for mono, 2 for stero etc).  Default: 2.
+
+.SH "DUMP FILE"
+.LP
+Using \fB-D\fR, \fB--dump-file\fR, \fBtune\fR will output raw samples to a file instead of 
+the sound card.  You need to re-encode this to play it because raw samples have no meta-data.
+.LP
+Here is how to encode do it with \fBffmpeg(1)\fR (note that you need to replace the input 
+codec's 16le with 16be if you are on a big endian system).
+
+.RS 4
+.nf
+$ ffmpeg -f s16le -acodec pcm_s16le -i $rawfile \\
+  -acodec pcm_s16le -ac $channels  output.wav
+.fi
+.RE
+
+ffmpeg has a lot of options.  You might need to be more specific in some cases.
+.LP
+Use \fBaplay(1)\fR to output it directly:
+
+.RS 4
+.nf
+$ aplay -c 1 -f S16_LE -r $samplerate $rawfile
+.fi
+.RE
 
 .SH "SEE ALSO"
 .LP
