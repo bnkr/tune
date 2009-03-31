@@ -7,7 +7,8 @@
 //   move this and the sdl wrapper to the main tune repos.  Hopefully I can keep
 //   the sdl wrapper synced in case of bugs...
 
-#include "../../wrappers/sdl.hpp"
+#include <tune_config.hpp>
+#include "sdl.hpp"
 #include "settings.hpp"
 // #include "data.hpp"
 

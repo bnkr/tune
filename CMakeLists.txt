@@ -59,8 +59,8 @@ mark_as_advanced(
 
 # include(CheckFunctionExists) 
 
-find_file(HAVE_SDL_SDL_H "SDL/SDL.h")
-mark_as_advanced(HAVE_SDL_SDL_H)
+find_file(HAVE_SDL_H "SDL.h")
+mark_as_advanced(HAVE_SDL_H)
 
 set(CONFIG_HPP_OUTPUT "${CMAKE_BINARY_DIR}/include/tune_config.hpp")
 configure_file("${CMAKE_SOURCE_DIR}/build-aux/tune_config.hpp.cmake" "${CONFIG_HPP_OUTPUT}")
@@ -90,7 +90,7 @@ set(BIN_TUNE "tune")
 set(BIN_TUNE_SRCS
   "src/main.cpp"
   "src/settings.cpp"
-  "src/notes.cpp"
+  # "src/notes.cpp"
 )
 add_executable(tune ${BIN_TUNE_SRCS})
 target_link_libraries(${BIN_TUNE} ${SDL_LIBRARY})
