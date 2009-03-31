@@ -72,6 +72,15 @@ configure_file("${CMAKE_SOURCE_DIR}/build-aux/tune_config.hpp.cmake" "${CONFIG_H
 # find_library(SOME_LIB "some")
 # mark_as_advanced(SOME_LIB)
 find_package(SDL REQUIRED)
+find_library(BOOST_PROGOPT_LIB "boost_program_options-mt")
+if (NOT BOOST_PROGOPT_LIB) 
+  find_library(BOOST_PROGOPT_LIB "boost_program_options")
+endif()
+find_library(BOOST_THREAD_LIB "boost_thread-mt")
+if (NOT BOOST_THREAD_LIB) 
+  find_library(BOOST_THREAD_LIB "boost_thread")
+endif()
+mark_as_advanced(BOOST_THREAD_LIB)
 
 ###########################
 ## Building normal stuff ##
@@ -93,7 +102,7 @@ set(BIN_TUNE_SRCS
   # "src/notes.cpp"
 )
 add_executable(tune ${BIN_TUNE_SRCS})
-target_link_libraries(${BIN_TUNE} ${SDL_LIBRARY})
+target_link_libraries(${BIN_TUNE} ${SDL_LIBRARY} "${BOOST_PROGOPT_LIB}" "${BOOST_THREAD_LIB}")
 
 # Do tests
 add_subdirectory("test")
