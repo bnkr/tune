@@ -589,41 +589,27 @@ function(doxygen_install_targets doxygen_target wants install_to install_docs_fr
   if ("x${install_docs_from}" STREQUAL "x")
     set(install_from "${DOXYGEN_OUT_DIR}")
     set(rebuild TRUE)
-
-    if (DOXYGEN_CMAKE_VERBOSE)
-      message("Installing from the built docs '${install_from}' -- will be built.")
-    endif()
   else()
     set(install_from "${install_docs_from}")
     set(rebuild FALSE)
-
-    if (DOXYGEN_CMAKE_VERBOSE)
-      message("Installing from given path '${install_from}'")
-    endif()
   endif()
 
   if (DOXYGEN_CMAKE_VERBOSE)
-    message("* wants: '${wants}'")
-    message("* base target: '${doxygen_target}'")
-    message("* install from: '${install_from}'")
-    message("* install to: '${install_to}'")
+    message(STATUS "Details of doxygen install:")
+    message(STATUS "* wants: '${wants}'")
+    message(STATUS "* base target: '${doxygen_target}'")
+    message(STATUS "* install from: '${install_from}'")
+    message(STATUS "* install to: '${install_to}'")
+    message(STATUS "* rebuild: ${rebuild}")
   endif()
 
   foreach(iter ${wants})
     if (iter MATCHES "pdf")
       set(file "${install_from}/${DOXYGEN_REL_PDF_FILE}")
       set(inst "${install_to}/${DOXYGEN_REL_LATEX_DIR}") 
-      if (DOXYGEN_CMAKE_VERBOSE)
-        message("pdf:\n  from: ${file}\n  to: ${inst}")
-      endif()
 
       if (rebuild)
         add_custom_target(depend_${doxygen_target}_pdf ALL DEPENDS "${DOXYGEN_PDF_FILE}")
-        if (DOXYGEN_CMAKE_VERBOSE)
-          message("  pdf depend target added (depend_${doxygen_target}_pdf)")
-        endif()
-      elseif(DOXYGEN_CMAKE_VERBOSE)
-        message("  no pdf depend target added")
       endif()
 
       install(
@@ -634,17 +620,8 @@ function(doxygen_install_targets doxygen_target wants install_to install_docs_fr
       set(file "${install_from}/${DOXYGEN_REL_HTML_DIR}")
       set(inst "${install_to}")
 
-      if (DOXYGEN_CMAKE_VERBOSE)
-        message("html:\n  from: ${file}\n  to: ${inst}")
-      endif()
-
       if (rebuild)
         add_custom_target(depend_${doxygen_target}_html ALL DEPENDS "${DOXYGEN_HTML_DIR}")
-        if (DOXYGEN_CMAKE_VERBOSE)
-          message("  html depend target added (depend_${doxygen_target}_html)")
-        endif()
-      elseif(DOXYGEN_CMAKE_VERBOSE)
-        message("  no html depend target added")
       endif()
 
       install(
