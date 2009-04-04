@@ -25,6 +25,8 @@
 #define DEFAULT_NOTE_DISTANCE_STR "8"
 #define DEFAULT_PAUSE_TIME        5
 #define DEFAULT_PAUSE_TIME_STR    "5"
+#define DEFAULT_AMPLITUDE_INT     75
+#define DEFAULT_AMPLITUDE_STR     "75"
 
 namespace boost {
   namespace program_options {
@@ -64,6 +66,7 @@ class settings {
 
     int sample_rate() const { return sample_rate_; }
     int channels() const { return channels_; }
+    double amplitude() const { return amplitude_; }
 
     bool exit() const { return exit_status_ != no_exit; }
     int exit_status() const { return (int) exit_status_; }
@@ -102,6 +105,7 @@ class settings {
     int note_distance_;
     int verbosity_level_;
     int pause_time_;
+    double amplitude_;
 
     std::string dump_file_;
 
@@ -113,6 +117,7 @@ class settings {
       note_distance_ = DEFAULT_NOTE_DISTANCE;
       pause_time_ = DEFAULT_PAUSE_TIME;
       verbosity_level_ = verbosity_normal;
+      amplitude_ = DEFAULT_AMPLITUDE_INT / 100;
     }
 
     void parse_args(int argc, char **argv);

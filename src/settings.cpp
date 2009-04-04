@@ -40,6 +40,7 @@ void settings::parse_args(int argc, char **argv) {
   namespace po = boost::program_options;
 
   std::string start_note;
+  int amplitude = DEFAULT_AMPLITUDE_INT;
 
   po::options_description all_opts("Options");
   all_opts.add_options()
@@ -56,6 +57,8 @@ void settings::parse_args(int argc, char **argv) {
      "Half notes between notes starting from -s, --start.  Default: " DEFAULT_NOTE_DISTANCE_STR)
     ("pause", po::value<int>(&pause_time_),
      "Milisecond pause time between notes.  Default: " DEFAULT_PAUSE_TIME_STR)
+    ("volume", po::value<int>(&amplitude),
+     "Amplitude number between 0 and 100.  Default: " DEFAULT_AMPLITUDE_STR)
     ("rate", po::value<int>(&sample_rate_),
      "Sample rate.  Default: " DEFAULT_SAMPLE_RATE_STR)
     ("channels", po::value<int>(&channels_),
@@ -78,12 +81,15 @@ void settings::parse_args(int argc, char **argv) {
     return;
   }
 
-  // validate:
+  // validate and assign
   dump_file_; // if vm.count etc etc
   duration_;
   note_distance_;
   sample_rate_;
-  start_note; // generate the array from this I guess.  so no more args allowed if this is set.
+  amplitude; // between 0 and 100;
+  start_note;
+
+  if (vm.count("volume")) { amplitude_ = amplitude / 100; }
 
   if (vm.count("verbose")) { verbosity_level_ = verbosity_verbose; }
 
