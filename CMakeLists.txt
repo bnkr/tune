@@ -14,6 +14,7 @@ string(REGEX REPLACE "^[^.]+\\.[^.]+\\.[^\\-]-([0-9]+).*" "\\1" PROJECT_SNAPSHOT
 
 include("build-aux/doxygen.cmake")
 include("build-aux/manpage.cmake")
+include("build-aux/btest.cmake")
 
 # General properties of the build
 include_directories("${CMAKE_SOURCE_DIR}/include/" "${CMAKE_BINARY_DIR}/include/")
