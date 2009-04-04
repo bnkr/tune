@@ -45,7 +45,6 @@ duration, then pressing enter will move to the next one.
 Dump raw samples to a file.  These can be played with \fBaplay(1)\fR or 
 transcoded with \fBffmpeg(1)\fR and others.  See the dump file section.
 
-
 .TP
 \fB-s\fR, \fB--start\fR=\fINOTE\fR 
 Note name or frequency to start at (then use -d).
@@ -59,6 +58,10 @@ with tune -s E -d 8.  Default: 8
 .TP
 \fB--pause\fR=\fIMILISECONDS\fR
 Milisecond pause time between notes.  Default: 50.
+
+.TP
+\fB-a\fR, \fB--volume\fR=\fINUM\fR
+Amplitude of the sine wave between 0 and 100. Default: 75.
 
 .TP
 \fB--rate\fR=\fIHERTZ\fR
