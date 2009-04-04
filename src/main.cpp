@@ -20,7 +20,76 @@
 
 #include <boost/thread.hpp>
 
+#include <limits>
 
+//! \brief Stateful calculation context.
+class sine_calculation {
+  public:
+    sine_salculation(int channels, double output_frequency, double amplitide = 0.75)
+    : channels_(channels), output_frequency_(output_frequency), amplitide_(amplitude), sine_pos_(0), sine_speed_(0) { }
+
+    //! \brief Set sound properties and note properties; recalculate state.
+    void reset(int channels, double output_frequency, double note_frequency, double amplitude) {
+      reset_sound(channels, output_frequency);
+      reset_wave(note_frequency, amplitude);
+      reset_state();
+    }
+
+    //! \brief Set stuff related to the sound output, sample size etc.
+    //! You *must* call reset_state() after this or the changes won't take affect.
+    void reset_sound(int channels, double frequency) {
+      output_frequency_ = frequency;
+      channels_ = channels;
+    }
+
+    //! \brief Set stuff related to the sine wave.  reset_state() is called.
+    void reset_wave(double frequency, double amplitude) {
+      note_frequency_ = frequency;
+      amplitude_ = amplitude;
+      reset_state();
+    }
+
+    //! \brief Reset the sine wave without changing the amplitude.
+    void reset_wave(double frequency) {
+      note_frequency_ = frequency;
+      reset_state();
+    }
+
+    //! \brief Based on the properties, recalculate the speed and set sine position to 0.
+    void reset_state() {
+      sine_pos_ = 0;
+      sine_speed_ = 2 * M_PI * note_frequency_ / output_frequency_;
+    }
+
+    //! \brief Normalised sample using std::numeric_limits.
+    template <class SampleUnit>
+    SampleUnit next_sample() const {
+      SampleUnit ret = y() * std::numeric_limits<SampleUnit>::max();
+      increment();
+      return ret;
+    }
+
+  protected:
+    //! \brief Value of y between -1 and 1.
+    double y() const {
+      return amplitude_ * std::sin(sine_pos_);
+    }
+
+    //! \brief Move to the next x-axis sample position.
+    void increment() {
+      sine_pos_ += sine_speed_;
+    }
+
+  private:
+    double output_frequency_;
+    double note_frequency_;
+
+    int channels_;
+    double amplitude_;
+
+    double sine_pos_;
+    double sine_speed_;
+};
 
 // TODO:
 //   look at the manpage for stuff I need to support.  The major one is
@@ -111,6 +180,10 @@ int main(int argc, char **argv) {
     if (set.dump_to_file()) {
     // sine_file("sinewave.raw", samples);
     }
+    //else if (set.start_note()) {
+    //}
+    else {
+    }
 
 
     return 0;
@@ -135,16 +208,55 @@ int main(int argc, char **argv) {
     }
 
     if (dev.obtained() != out_spec) {
-      // throw error ?  Better if we had an exact parameter to sdl::device.
-      std::cerr << "Error: could not get the requested audio spec - parameters not supported?" << std::endl;
-      return EXIT_FAILURE;
-    }
-
-    if (set.duration_ms() == settings::forever && set.verbosity_level() >= settings::verbosity_normal) {
-      std::cout << "Press any key to move to the next note." << std::endl;
+      std::cerr << "warning: could not get the requested audio spec - parameters not supported?" << std::endl;
     }
 
     dev.unpause();
+
+    // sine_calculation calc(dev.obtained().channels(), dev.obtained().sample_rate());
+    // note_sequence note_seq(set);
+    //
+    //
+    // // we need to take a lot of stuff into account when calculating the right time
+    // // period of buffer.
+    // buffer_generator buffer(set.duration(), set.pause_ms(), dev.buffer_size(), dev.buffer_samples(), dev.buffer_size());
+    // int16_t samples = (int16_t*) std::malloc(dev.buffer_size());
+    // do {
+    //   freq = note_seq.next_frequency
+    //   // can use iterator?
+    //   calc.reset_wave(freq);
+    //
+    //   // calculate an entire duration of note.
+    //   if (set.dump_to_file()) {
+    //     // TODO: what about when duration == forever?  We need to wait for keys.
+    //     buffer.calculate(note, push_and_dump);
+    //   }
+    //   else {
+    //     buffer.calculate(note, push)
+    //   }
+    // } while (set.loop());
+    //
+    //
+    //
+    //
+    // // would be nice to make this a special kind of flipflop monitor for
+    // // ipc between two processes: notify a value and wait for the other process
+    // // to change it again, then do something as a result (in both cases here
+    // // we do nothing).
+    // lock quit
+    // quit = true
+    // notify quit condition
+    // unlock quit
+    //
+    // // while the sdl thread hasnt flipped it back again
+    // while (quit == true) {
+    //   wait on quit condition
+    // }
+    //
+    // // Avoid needlessly calling the output while we're shutting down
+    // dev.pause()
+    //
+    //
 
     // TODO:
     //   somehow set up a list of notes to iterate

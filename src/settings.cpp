@@ -10,9 +10,9 @@
 namespace {
   const char *usage_message() {
     return
-      "usage: tune [-l] [-m S] [-s N -d D] [abcdefg[#|B][N]|freq]...\n"
+      "usage: tune [option]... [note[#|B][N]|freq]...\n"
       "Play one or more notes in order.  Notes are a-g with a # or B suffix or a\n"
-      "frequency value.  The N suffix to a note decids which octave to play on.  Or\n"
+      "frequency value.  The N suffix to a note decides which octave to play on.  Or\n"
       "you can specify the frequcncy directly.  Options and arguments can be in any\n"
       "order.   With no notes, it defaults to A at 440hz.\n"
       ;
@@ -41,7 +41,7 @@ void settings::parse_args(int argc, char **argv) {
 
   std::string start_note;
 
-  po::options_description all_opts;
+  po::options_description all_opts("Options");
   all_opts.add_options()
     ("help,h", "This message and quit.")
     ("verbose,v", "Be verbose.")
@@ -65,7 +65,7 @@ void settings::parse_args(int argc, char **argv) {
   po::variables_map vm;
   po::parsed_options parsed = po::command_line_parser(argc, argv).options(all_opts).run();
   po::store(parsed, vm);
-  po::notify(vm); //< do I need that?
+  po::notify(vm);
 
   if (vm.count("help")) {
     exit_status_ = exit_ok;
