@@ -10,10 +10,11 @@
 namespace {
   const char *usage_message() {
     return
-      "usage: tune [-l] [-m S] [-s N -d D] [abcdefg[#|B][N]]... [F]...\n"
+      "usage: tune [-l] [-m S] [-s N -d D] [abcdefg[#|B][N]|freq]...\n"
       "Play one or more notes in order.  Notes are a-g with a # or B suffix or a\n"
-      "frequency value.  The N suffix to a note decids which octave to play on.  \n"
-      "Options and arguments can be in any order.   With no notes, it defaults to c.\n"
+      "frequency value.  The N suffix to a note decids which octave to play on.  Or\n"
+      "you can specify the frequcncy directly.  Options and arguments can be in any\n"
+      "order.   With no notes, it defaults to A at 440hz.\n"
       ;
   }
 
@@ -50,7 +51,7 @@ void settings::parse_args(int argc, char **argv) {
     ("dump,D", po::value<std::string>(&dump_file_),
      "Dump raw samples to a file.")
     ("start,s", po::value<std::string>(&start_note),
-     "Note name to start with.")
+     "Note name or frequency to start with.")
     ("distance,d", po::value<int>(&note_distance_),
      "Half notes between notes starting from -s, --start.  Default: " DEFAULT_NOTE_DISTANCE_STR)
     ("pause", po::value<int>(&pause_time_),
