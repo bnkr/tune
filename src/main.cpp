@@ -219,24 +219,43 @@ int main(int argc, char **argv) {
     //
     // // we need to take a lot of stuff into account when calculating the right time
     // // period of buffer.
-    // buffer_generator buffer(set.duration(), set.pause_ms(), dev.buffer_size(), dev.buffer_samples(), dev.buffer_size());
-    // int16_t samples = (int16_t*) std::malloc(dev.buffer_size());
-    // do {
-    //   freq = note_seq.next_frequency
-    //   // can use iterator?
-    //   calc.reset_wave(freq);
+    // // TODO: memory pool this later.
+    // sample_generator buffer(set.duration(), dev.buffer_size(), dev.buffer_samples(), dev.buffer_size());
+    // if (set.dump_to_file()) {
+    //   buffer.set_file(set.dump_file());
+    // }
     //
-    //   // calculate an entire duration of note.
-    //   if (set.dump_to_file()) {
-    //     // TODO: what about when duration == forever?  We need to wait for keys.
-    //     buffer.calculate(note, push_and_dump);
-    //   }
-    //   else {
-    //     buffer.calculate(note, push)
+    // do {
+    //   note_seq::iterator i = note_seq.begin() ...
+    //   while (i != note_seq.end()) {
+    //     freq = note_seq.next_frequency
+    //     // can use iterator?
+    //     calc.reset_wave(freq);
+    //
+    //     samples = NULL;
+    //     while ((samples = buffer.get_samples(calc)) != NULL) {
+    //       q.push(samples);
+    //       if (keypress) { // nonblocking i/o somehow?
+    //         flush the buffer
+    //         goto next_note;
+    //       }
+    //     }
+    //
+    //     // TODO:
+    //     //   duped code, also tricky to calculate the right values for silence.  Also, do we
+    //     //   want to wait for interrupts here?
+    //     //
+    //     //   We could cause the interrupt to stop teh silence?  I guess that is right.. we must
+    //     //   say this behaviour though because people might think it will go direct to the thingy.
+    //
+    //
+    //     if (set.pause_ms()) {
+    //       while ((samples = buffer.get_pause(pause_ms)) {
+    //         q.push
+    //       }
+    //     }
     //   }
     // } while (set.loop());
-    //
-    //
     //
     //
     // // would be nice to make this a special kind of flipflop monitor for
@@ -249,9 +268,11 @@ int main(int argc, char **argv) {
     // unlock quit
     //
     // // while the sdl thread hasnt flipped it back again
+    // lock quit lk
     // while (quit == true) {
-    //   wait on quit condition
+    //   wait on quit condition(lk)
     // }
+    //
     //
     // // Avoid needlessly calling the output while we're shutting down
     // dev.pause()

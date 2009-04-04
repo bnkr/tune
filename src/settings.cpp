@@ -57,7 +57,7 @@ void settings::parse_args(int argc, char **argv) {
      "Half notes between notes starting from -s, --start.  Default: " DEFAULT_NOTE_DISTANCE_STR)
     ("pause", po::value<int>(&pause_time_),
      "Milisecond pause time between notes.  Default: " DEFAULT_PAUSE_TIME_STR)
-    ("volume", po::value<int>(&amplitude),
+    ("volume,a", po::value<int>(&amplitude),
      "Amplitude number between 0 and 100.  Default: " DEFAULT_AMPLITUDE_STR)
     ("rate", po::value<int>(&sample_rate_),
      "Sample rate.  Default: " DEFAULT_SAMPLE_RATE_STR)
