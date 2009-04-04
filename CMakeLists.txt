@@ -63,6 +63,8 @@ mark_as_advanced(
 find_file(HAVE_SDL_H "SDL.h")
 mark_as_advanced(HAVE_SDL_H)
 
+set(TUNE_VERSION "${PROJECT_VERSION}")
+
 set(CONFIG_HPP_OUTPUT "${CMAKE_BINARY_DIR}/include/tune_config.hpp")
 configure_file("${CMAKE_SOURCE_DIR}/build-aux/tune_config.hpp.cmake" "${CONFIG_HPP_OUTPUT}")
 

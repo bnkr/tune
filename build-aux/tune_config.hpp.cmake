@@ -4,4 +4,7 @@
 // otherwise we asume SDL/SDL.h
 #cmakedefine HAVE_SDL_H
 
+// Information
+#cmakedefine TUNE_VERSION "@TUNE_VERSION@"
+
 #endif

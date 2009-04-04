@@ -1,11 +1,6 @@
 #include "settings.hpp"
 
-// TODO: the config
-#if 0
 #include <tune_config.hpp>
-#endif
-
-#define TUNE_VERSION "0.0"
 
 #include <boost/program_options.hpp>
 
