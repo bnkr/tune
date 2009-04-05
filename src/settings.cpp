@@ -39,7 +39,6 @@ void settings::print_version() {
 void settings::parse_args(int argc, char **argv) {
   namespace po = boost::program_options;
 
-  std::string start_note;
   int amplitude = DEFAULT_AMPLITUDE_INT;
 
   po::options_description all_opts("Options");
@@ -51,10 +50,12 @@ void settings::parse_args(int argc, char **argv) {
      "Time for each note in miliseconds.  Defaults: " DEFAULT_NOTE_DURATION_STR)
     ("dump,D", po::value<std::string>(&dump_file_),
      "Dump raw samples to a file.")
-    ("start,s", po::value<std::string>(&start_note),
+    ("start,s", po::value<std::string>(&start_note_),
      "Note name or frequency to start with.")
     ("distance,d", po::value<int>(&note_distance_),
      "Half notes between notes starting from -s, --start.  Default: " DEFAULT_NOTE_DISTANCE_STR)
+    ("number,n", po::value<int>(&num_notes_),
+     "How many notes to play from --start with --distance.  Default: stop after one octave.")
     ("pause", po::value<int>(&pause_time_),
      "Milisecond pause time between notes.  Default: " DEFAULT_PAUSE_TIME_STR)
     ("volume,a", po::value<int>(&amplitude),
@@ -83,18 +84,26 @@ void settings::parse_args(int argc, char **argv) {
 
   // validate and assign
   dump_file_; // if vm.count etc etc
-  duration_;
-  note_distance_;
-  sample_rate_;
-  amplitude; // between 0 and 100;
-  start_note;
+  duration_; // above 0.
+  sample_rate_; // warn if it's not common mabe?
+  // TODO: somehow I have to work out how to make it stop after one octave
+  num_notes_;
 
-  if (vm.count("volume")) { amplitude_ = amplitude / 100; }
+  if (vm.count("volume")) {
+    if (amplitude < 0 || amplitude > 100) {
+      // TODO: throw an error here
+    }
+    amplitude_ = amplitude / 100;
+  }
 
-  if (vm.count("verbose")) { verbosity_level_ = verbosity_verbose; }
+  if (vm.count("verbose")) {
+    verbosity_level_ = verbosity_verbose;
+  }
 
   if (vm.count("loop")) { flags_[fl_loop] = true; }
 
   // now loop the non-options values
+  // validate notes list vs. start note. (they are mutually exclusive)
+
 }
 

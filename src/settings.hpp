@@ -42,13 +42,13 @@ class invalid_setting : public std::runtime_error {
 
 class settings {
   public:
-    // TODO:
-    //   need to use the frequency value here because I'm going to allow frequencies
-    //   on the cmdline.  Annoying to have to deal with the working notes out in a settings
-    //   class tho.  Perhaps settings should take a global_settings object or something?
-    //   This would be good because we need to initialise a global state for sdl.
-    typedef notes::notes_type notes_type;
-    typedef std::vector<notes::notes_type> notes_list_type;
+    typedef std::vector<std::string> notes_list_type;
+
+    typedef enum {
+      //! \brief Use note_list()
+      note_mode_list,
+      //! \brief use start_note() and note_distance().
+      note_mode_start} note_mode_type;
 
     //! \brief Throws program_options::error subclasses.
     settings(int argc, char **argv) {
@@ -56,17 +56,25 @@ class settings {
       parse_args(argc, argv);
     }
 
-    const notes_list_type &notes() const { return notes_; }
+    // \brief Use this to decide whether to use the notes() or start_note().
+    note_mode_type note_mode() const { return note_mode_; }
+    const notes_list_type &note_list() const { return notes_; }
+
+    const std::string &start_note() const { return start_note_; }
+    //! \brief Distance in steps.
+    int note_distance() const { return note_distance_; }
+    //! \brief How many increments of note_distance() to start_note() ?
+    int num_notes() const { return num_notes_; }
 
     //! \brief How long to play each note for.  Can be \link forever \endlink.
     int duration_ms() const { return duration_; }
-
     bool loop() const { return flag(fl_loop); }
-    int verbosity_level() const { return verbosity_level_; }
 
     int sample_rate() const { return sample_rate_; }
     int channels() const { return channels_; }
     double amplitude() const { return amplitude_; }
+
+    int verbosity_level() const { return verbosity_level_; }
 
     bool exit() const { return exit_status_ != no_exit; }
     int exit_status() const { return (int) exit_status_; }
@@ -105,7 +113,11 @@ class settings {
     int note_distance_;
     int verbosity_level_;
     int pause_time_;
+    int num_notes_;
     double amplitude_;
+
+    std::string start_note_;
+    note_mode_type note_mode_;
 
     std::string dump_file_;
 
@@ -118,6 +130,8 @@ class settings {
       pause_time_ = DEFAULT_PAUSE_TIME;
       verbosity_level_ = verbosity_normal;
       amplitude_ = DEFAULT_AMPLITUDE_INT / 100;
+      note_mode_ = note_list;
+      num_notes_ = 0;
     }
 
     void parse_args(int argc, char **argv);
