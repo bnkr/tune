@@ -9,62 +9,7 @@
 # wine to searh for.  Otherwise you need to copy them to the test directories
 # or configure wine to search for them using the PATH *from within wine*.
 
-
-# Sets any marked variable to that of the varname.  Everything which is not 
-# marked by a name (like VARNAME val1 ...) goes in a var called OTHER.  Only
-# those vars in $allowed are searched for.
-#
-# Examples:
-#
-#   btest_parse_args("ARGS" "" "ARGS;x;y")
-#   ARGS = x;y
-#
-#   btest_parse_args("ARGS;SRCS" "" "ARGS;x;y;SRCS;x;y;sdsdsd")
-#   ARGS = x;y, SRCS = x;y;sdsdsd
-#
-#   btest_parse_args("ARGS;SRCS" "" "blah1;blah2;ARGS;x;y;SRCS;x;y;sdsdsd")
-#   ARGS = x;y, SRCS = x;y;sdsdsd, OTHER = blah1;blah2
-#
-# The ignore parameter will cause markers to put stuff in he PA_OTHER into
-# PA_IGNORED.
-#
-# TODO: write examples of the ignore list thing.  
-# TODO: a simple unit test for this would be useful.
-macro(btest_parse_args allowed ignore arglist)
-  set(pa_var)
-  set(pa_add "TRUE")
-  foreach(arg ${arglist})
-    # Set the varptr to the marker var if applicable.
-    foreach (search_arg ${allowed})
-      if (${arg} STREQUAL "${search_arg}")
-        set(pa_var ${arg})
-        set(pa_add)
-        break()
-      endif()
-    endforeach()
-
-    # Set the varptr to PA_IGNORED if applicable.
-    foreach (search_arg ${ignore}) 
-      if (${arg} STREQUAL ${search_arg})
-        set(pa_var "PA_IGNORED")
-        # Yes, we DO want this one!
-        set(pa_add TRUE)
-        break()
-      endif()
-    endforeach()
-
-    # If this arg is not a marker var, then add it to the varptr.
-    if (pa_add) 
-      if (NOT pa_var) 
-        list(APPEND "PA_OTHER" ${arg})
-      else()
-        list(APPEND ${pa_var} ${arg})
-      endif()
-    endif()
-
-    set(pa_add "TRUE")
-  endforeach()
-endmacro()
+include("${CMAKE_SOURCE_DIR}/build-aux/butil.cmake")
 
 # Make a test with the target name name_test.  Note that if you are depending 
 # on a top level target, you should use add_dependencies on $name_test instead 
@@ -81,13 +26,11 @@ endmacro()
 #   [LDFLAGS flag...]
 #   [LIBS link_name...]
 #   [DEPENDS depend...]
-#   [XFAIL TRUE|FALSE]
+#   [XFAIL]
 # )
-#
-# TODO: it would be much nicer if I had XFAIL as a flag, rather than a boolean.
 function(btest_add)
-  btest_parse_args("ARGS;CPPFLAGS;CFLAGS;LDFLAGS;LIBS;DEPENDS;SOURCES;XFAIL" "" "${ARGV}")
-
+  butil_parse_args("ARGS;CPPFLAGS;CFLAGS;LDFLAGS;LIBS;DEPENDS;SOURCES" "XFAIL" "" "${ARGV}")
+  
   if (NOT PA_OTHER)
     message(FATAL_ERROR "btest_add(): insufficiant arguments.  Need at least a name and a source.")
   endif()
@@ -144,7 +87,7 @@ function(btest_add)
 
   if (XFAIL)
     set_tests_properties(
-      ${test_target}
+      ${test_name}
       PROPERTIES WILL_FAIL YES
     )
   endif()
@@ -169,17 +112,16 @@ endfunction()
 #   [LIBS link_name...]
 #   [DEPENDS depend...]
 #   [SCRIPT_DEPENDS depend...]
-#   [XFAIL TRUE|FALSE]
+#   [XFAIL]
 # )
 function(btest_add_ruby name ruby_input)
   set(args "${ARGV}")
   list(REMOVE_AT args 0 1)
-  btest_parse_args("GENERATOR_ARGS;SCRIPT_DEPENDS" "ARGS;CPPFLAGS;CFLAGS;LDFLAGS;LIBS;DEPENDS;SOURCES;XFAIL" "${args}")
+  butil_parse_args("GENERATOR_ARGS;SCRIPT_DEPENDS" "" "ARGS;CPPFLAGS;CFLAGS;LDFLAGS;LIBS;DEPENDS;SOURCES;XFAIL" "${args}")
 
   if (OTHER) 
     message(FATAL_ERROR "btest_add_ruby(): too many arguments")
   endif()
-
 
   set(dir "${CMAKE_BINARY_DIR}/ruby_tests")
   # Note: expand for other languages maybe?
