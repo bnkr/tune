@@ -34,23 +34,17 @@ if (CMAKE_COMPILER_IS_GNUCC)
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -Wall" STRING CACHE FORCE "C compiler parmeters when BUILD_TYPE is RelWithDebInfo")
 endif()
 
+if (CMAKE_BUILD_TYPE STREQUAL "")
+  message("Warning: CMAKE_BUILD_TYPE is empty!  Usually you want Release or RelWithDebInfo.")
+endif()
+
 # Global consts for libraries etc.
 
 # General options
 option(WANT_DOCS "Install documentation - when off, all other docs options are off." YES)
-option(WANT_DOXYGEN_HTML "Install HTML made by doxygen" YES)
-option(WANT_DOXYGEN_PDF "Install PDF from doxygen (needs pdfLaTeX)" YES)
 option(WANT_DOCS_MAN "Install manpages if there are any." YES)
-option(WANT_DOXYGEN_REBUILD "Regenerate doxygen and install that instead of the distributed docs." NO)
-
-set(DOXYGEN_DOXYFILE_TEMPLATE "${CMAKE_SOURCE_DIR}/Doxyfile.default" CACHE STRING 
-    "Base doxyfile.  Mostly useful for developers.  Certain vars will be overwritten by cmake (in/output paths mostly).")
 
 mark_as_advanced(
-  DOXYGEN_DOXYFILE_TEMPLATE 
-  WANT_DOXYGEN_REBUILD
-  WANT_DOXYGEN_HTML 
-  WANT_DOXYGEN_PDF
   WANT_DOCS_MAN
 )
 
@@ -114,28 +108,19 @@ add_subdirectory("test")
 ## Building Documentation ##
 ############################
 
-if (WANT_DOXYGEN_PDF)
-  list(APPEND DOXYGEN_WANTS "pdf")
-endif()
-if (WANT_DOXYGEN_HTML)
-  list(APPEND DOXYGEN_WANTS "html")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(DOXYGEN_CMAKE_VERBOSE "YES")
 endif()
 
-set(DOXYGEN_CMAKE_VERBOSE "yes")
-
-set(DOXYGEN_TARGET "doxygen")
-set(DOXYGEN_INPUT_PATHS "include/")
-doxgyen_setup_flags(
-  DOXYGEN_FLAGS 
-  "${DOXYGEN_TARGET}"
-  "${DOXYGEN_WANTS}"
+add_doxygen_directives(
+  TARGET doxygen
+  INPUTS "include/"
+  ARGS_VAR ad_args
+  DOCS_MIRROR ${CMAKE_SOURCE_DIR}/doc
+  DEFAULT_DOXYFILE ${CMAKE_SOURCE_DIR}/Doxyfile.default
+  INSTALL ${WANT_DOCS}
 )
-
-add_doxygen(
-  ${DOXYGEN_TARGET}
-  ${DOXYGEN_DOXYFILE_TEMPLATE}
-  "${DOXYGEN_FLAGS}"
-)
+add_doxygen(${ad_args})
 
 ##################
 ## Installation ##
@@ -160,20 +145,6 @@ if (WANT_DOCS)
   install(
     FILES README COPYING 
     DESTINATION ${DOCDIR}
-  )
-
-  if (WANT_DOXYGEN_REBUILD)
-    set(INSTALL_FROM)
-  else()
-    set(INSTALL_FROM "${CMAKE_SOURCE_DIR}/doc/")
-  endif()
-
-  # Note: this requires that the variables set by doxygen_setup_flags are still valid!
-  doxygen_install_targets(
-    "${DOXYGEN_TARGET}"
-    "${DOXYGEN_WANTS}" 
-    "${DOCDIR}" 
-    "${INSTALL_FROM}"
   )
 
   if (WANT_DOCS_MAN)
