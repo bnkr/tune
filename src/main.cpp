@@ -3,11 +3,8 @@
 \brief main()
 */
 
-// TODO:
-//   move this and the sdl wrapper to the main tune repos.  Hopefully I can keep
-//   the sdl wrapper synced in case of bugs...
-
 #include <tune_config.hpp>
+
 #include "sdl.hpp"
 #include "settings.hpp"
 // #include "data.hpp"
@@ -18,6 +15,7 @@
 #include <cmath>
 #include <cstdio>
 
+#include <para/locking.hpp>
 #include <boost/thread.hpp>
 
 #include <limits>
@@ -159,6 +157,217 @@ void sine_file(const char *filename, std::size_t length) {
   fclose(fh);
 }
 
+// TODO:
+//   bleh - data has to be all global an such.  Also, it would be
+//   nice to pass the T to this func.  That would solve a lot, and it
+//   seems to be a very normal condition... the only problem is that it
+//   forces some knowledge of the T, and also that every monitor param
+//   needs to have a data() method, which it currently doesn't.  Bind
+//   obv works the best.
+bool push_continue_predicate() {
+  return ! queue.toobig() || quit;
+}
+
+//! \brief Abstract locked pushing and flushing the buffer.
+//TODO:
+//  How could I make this kind of pattern easier to use?  Monitored<T> would be
+//  a bit easier, but not much more...
+template<class MonitoredType>
+class queue_pusher {
+  public:
+    queue_pusher(SyncType &sync) : flush_(false), sync_(sync) {}
+
+    void flush_next_push() { flush_ = true; }
+
+    //! \brief Blocking operation to push the buffer.
+    void push(void *buffer) {
+      typedef MonitoredType::mutex_type     mutex_type;
+      typedef MonitoredType::lock_type      lock_type;
+      // TODO:
+      //   Design needs a monitor bind... I guess no time like the present.
+      //   Use a sync_tuple, and joing a monitor_sync to it.  Then back-port it to
+      //   para.  Should be easy enough.
+      //
+      //   note: an extension.  Perhaps we sould extend the bind concept
+      //   to encapsulate the predicates?  The predicate_bind would take
+      //   the monitor bind, though, because there's a chance we'll use
+      //   a different bind.  How doe the constructors work like that?
+      //   We might end up with inconsistancies...
+      typedef MonitoredType::condition_type condition_type;
+
+      typedef monitor<mutex_type, lock_type, condition_type> monitor_type;
+
+      //TODO:
+      //  actually, it would be less skippy if we iterate the queue and pop
+      //  from the *back*, locking and unlocking each time.
+
+      monitor_type monitor(sync_, push_continue_predicate);
+      // would be nicer if I could get this by monitor::data().
+      SyncType::value_type &q = sync_.data();
+      if (flush_) {
+        q.clear();
+      }
+      q.push(buffer);
+      flush_ = false;
+    }
+
+  private:
+    bool flush_;
+    SyncType &sync_;
+
+
+};
+
+// TODO:
+//   there's a slight problem here: list mode obv. requires computing a list
+//   while note mode can be generated on the fly.  We're wasting a bit if we
+//   do both somehow...
+class note_sequence {
+  public:
+    note_sequence(settings &set) {
+      if (set.note_mode() == settings::note_mode_list) {
+        // generate a seq. from note_list()
+      }
+      else {
+        assert(set.note_mode() == settings::note_mode_start);
+        // and another from
+      }
+
+    }
+};
+
+// TODO:
+//   memory pool this later - return a special auto ptr with a ref to the
+//   memory pool perhaps?
+class sample_generator {
+  public:
+    void reset(int64_t time_ms) {
+    }
+
+    // TODO: better to have the calculation in the ctor or this func?
+    //
+    //! \brief Return output samples until the time is fullfiled.
+    void *get_samples(since_calculation &calc) {}
+    //! \brief Return silence samples until the time is fullfiled.
+    void *get_silence() {}
+};
+
+//  TODO: again, passing the data here would be really useful.
+
+#include <para/locking.hpp>
+
+// TODO:
+//   My conclusion here is to implement it without the class and then generalise
+//   it back to this class.
+// TODO: port this back to para, incl. this docs to the main doc page..
+//
+//
+// cat <<EOF > docs
+// This pattern is necessary when, for some reason, it is not possible to
+// join a thread.  For example, when the thread control is obscured by some
+// other library like SDL.  It ensures the order:
+//
+// - th1: flag
+// - th2: acknowledge
+// - th1: acknowledge
+// - th1, th2: continue
+//
+// The following example describes the usage of monitored_flag:
+//
+// monitored_flag<
+//   boost::mutex,
+//   boost::unique_lock<boost::mutex>,
+//   boost::condition_variable
+// > fl;
+//
+// void controller_thread() {
+//   while (work_exists()) give_work_to_worker_thread();
+//
+//   // Tell the worker to exit and wait for it to say "ok".
+//   fl.flip();
+//   // worker is certainly terminated now.
+//   exit_program();
+// }
+//
+// void worker_thread() {
+//   bool finished = false;
+//   while (true) {
+//     // TODO:
+//     //   no, this won't work because we hit that point multiple
+//     //   times.
+//     if (finished) { return; }
+//     else if (fl.active()) {
+//       terminate_gracefully();
+//       // tell the controller it's ok to exit now and wait until
+//       // they have acknowledged.
+//       fl.flip();
+//       // Don't hit the activate again.
+//       finished = true;
+//       return;
+//     }
+//
+//     process_work_given();
+//   }
+// }
+// EOF
+//
+// Observations:
+// - isn't it basically a semaphore?
+//   - check this
+// - could it be done more effictively with two condition vars?
+//   - no, I think you always need the flag.
+// - all I have here is a monitored boolean.  The controller could just wait
+//   on a condition
+// - this would be a lot faster with atomic variable.  The sync_ would not
+//   be needed, but the condition might be?  Or we could just spin.. hm.
+//   This is a tricky proposition.
+// - it's error prone.  You can use the wrong call in the wrong function
+//   and it all breaks horribly.
+#if 0
+template<class Mutex, class Lock, class Condition>
+class monitored_flag {
+  public:
+    typedef Mutex     lockable_type;
+    typedef Lock      lock_type;
+    typedef Condition condition_type;
+
+    monitored_flag() : sync_(false), monitor_sync_(sync_) {}
+
+    //! \brief Has the switch been flipped?
+    bool activated() const {
+      lock_type lk(sync_.mutex());
+      return sync_.data();
+    }
+
+    //! \brief Flip the flag and wait for it to change back.
+    void flip() {
+      lock_type lk(sync_.mutex());
+      sync_.data() = ! sync_.data();
+      monitor_sync_.notify_one();
+      wait_for_change(lk);
+    }
+
+  private:
+    void wait_for_change(lock_type &lk) {
+      // TODO:
+      //   problem.  We duplicate the code of a monitor here.  It seems
+      //   we find the need to a monitor to be able to take over an existing
+      //   lock.  Maybe this indicates the necesity for a monitor_head
+      //   function?   Or a lockless monitor which takes an existing lock?
+      //
+      //   lockless_monitor mon(lk, sync, pred);
+      //
+      //   That's a decent idea.
+      bool current = sync_.data();
+      while (sync_.data() == current) {
+        monitor_sync_.wait_condition().wait(lk);
+      }
+    }
+
+    para::sync_tuple<int, mutex_type> sync_;
+    para::monitor_bind<condition_type> monitor_sync_;
+};
+#endif
 
 int main(int argc, char **argv) {
   try {
@@ -167,37 +376,10 @@ int main(int argc, char **argv) {
       return set.exit_status();
     }
 
-    // TODO: this should be dynamic - also we aren't looping the values asked for.
-    std::size_t miliseconds = 5 * 10;
-    std::size_t seconds = miliseconds / 10;
-
-    std::size_t frequency = set.sample_rate();
-    std::size_t channels = set.channels();
-
-    std::size_t samples = frequency * seconds;
-    std::size_t buffer_size = channels * samples * sizeof(int16_t);
-
-    if (set.dump_to_file()) {
-    // sine_file("sinewave.raw", samples);
-    }
-    //else if (set.start_note()) {
-    //}
-    else {
-    }
-
-
-    return 0;
+    // declare this quick because it does a lot of validation
+    note_sequence note_seq(set);
 
     sdl::audio aud;
-    // TODO:
-    //   put this in a global object along with some other stuff which
-    //   I guess has to come from settings...  we could make settings
-    //   global I suppose... the *obtained* value is what we need though.
-    //   I guess our global will be like:
-    //
-    //     wave_properties;
-    //     // ..
-    //     p.initialise(set, dev.obtained());
     sdl::audio_spec out_spec(sine_callback);
     out_spec.frequency(set.sample_rate());
     out_spec.channels(set.channels());
@@ -213,90 +395,71 @@ int main(int argc, char **argv) {
 
     dev.unpause();
 
-    // sine_calculation calc(dev.obtained().channels(), dev.obtained().sample_rate());
-    // note_sequence note_seq(set);
-    //
-    //
-    // // we need to take a lot of stuff into account when calculating the right time
-    // // period of buffer.
-    // // TODO: memory pool this later.
-    // sample_generator buffer(set.duration(), dev.buffer_size(), dev.buffer_samples(), dev.buffer_size());
-    // if (set.dump_to_file()) {
-    //   buffer.set_file(set.dump_file());
-    // }
-    //
-    // do {
-    //   note_seq::iterator i = note_seq.begin() ...
-    //   while (i != note_seq.end()) {
-    //     freq = note_seq.next_frequency
-    //     // can use iterator?
-    //     calc.reset_wave(freq);
-    //
-    //     samples = NULL;
-    //     while ((samples = buffer.get_samples(calc)) != NULL) {
-    //       q.push(samples);
-    //       if (keypress) { // nonblocking i/o somehow?
-    //         flush the buffer
-    //         goto next_note;
-    //       }
-    //     }
-    //
-    //     // TODO:
-    //     //   duped code, also tricky to calculate the right values for silence.  Also, do we
-    //     //   want to wait for interrupts here?
-    //     //
-    //     //   We could cause the interrupt to stop teh silence?  I guess that is right.. we must
-    //     //   say this behaviour though because people might think it will go direct to the thingy.
-    //
-    //
-    //     if (set.pause_ms()) {
-    //       while ((samples = buffer.get_pause(pause_ms)) {
-    //         q.push
-    //       }
-    //     }
-    //   }
-    // } while (set.loop());
-    //
-    //
-    // // would be nice to make this a special kind of flipflop monitor for
-    // // ipc between two processes: notify a value and wait for the other process
-    // // to change it again, then do something as a result (in both cases here
-    // // we do nothing).
-    // lock quit
-    // quit = true
-    // notify quit condition
-    // unlock quit
-    //
-    // // while the sdl thread hasnt flipped it back again
-    // lock quit lk
-    // while (quit == true) {
-    //   wait on quit condition(lk)
-    // }
-    //
-    //
-    // // Avoid needlessly calling the output while we're shutting down
-    // dev.pause()
-    //
-    //
+    sine_calculation calc(dev.obtained().channels(), dev.obtained().sample_rate());
+
+    // we need to take a lot of stuff into account when calculating the right time
+    // period of buffer.
+    sample_generator buffer(set.duration(), dev.buffer_size(), dev.buffer_samples(), dev.buffer_size());
+    if (set.dump_to_file()) {
+      buffer.set_file(set.dump_file());
+    }
+
+    int16_t samples = NULL;
+    queue_pusher pusher;
+    do {
+      note_seq::iterator i = note_seq.begin() ...
+      while (i != note_seq.end()) {
+        freq = note_seq.next_frequency (or *i if I get that wokring)
+        // can use iterator?
+        calc.reset_wave(freq);
+        buffer.reset(set.duration_ms());
+
+        samples = NULL;
+        while ((samples = buffer.get_samples(calc)) != NULL) {
+          pusher.push(samples);
+
+          // TODO: how keypress?
+          if (keypress()) { // nonblocking i/o somehow?
+            // flush next time we have a full buffer.
+            pusher.flush_next_push();
+            break;
+          }
+        }
+
+        if (set.pause_ms()) {
+          buffer.reset(set.pause_ms());
+
+          while ((samples = buffer.get_silence()) != NULL) {
+            pusher.push(samples);
+            if (keypress()) {
+              break;
+            }
+          }
+        }
+      }
+    } while (set.loop());
+
+    // final period
+    samples = buffer.get_silence();
+    if (samples) {
+      pusher.push(buffer.get_silence())
+    }
 
     // TODO:
-    //   somehow set up a list of notes to iterate
-    //
-    //   and call something like play_notes(container, duration);
-    //   also play_single_note(note_id);
-    //
+    //   Generalise this pattern as monitored_flag (see above).  (First I need the quit
+    //   strategy in the SDL thread).
+    boost::unique_lock<boost::scoped_lock> lk;
+    quit = true;
+    quit_cond.notify_one();
 
-    // So how do I switch notes?
-    // - Switch it every T ms by timer or something?  Nice because I can
-    //   use ctrl-c to change then or even arrow keys to go back and forth.
-    // - use any key for next note
-    // - also have a time between note mode - could use SDL timer?  Or just
-    //   thread sleep easy enough.
-
-    boost::unique_lock<boost::mutex> lk(finished_mutex);
-    while (! finished) {
-      finished_cond.wait(lk);
+    // while the sdl thread hasnt flipped it back again
+    while (quit == true) {
+      quit_cond.wait(lk);
     }
+    lk.unlock();
+
+    // Avoid needlessly calling the output while we're shutting down
+    dev.pause()
 
     return EXIT_SUCCESS;
   }

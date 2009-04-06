@@ -104,6 +104,7 @@ void settings::parse_args(int argc, char **argv) {
 
   // now loop the non-options values
   // validate notes list vs. start note. (they are mutually exclusive)
+  // also note_mode_list/note_mode_start.
 
 }
 

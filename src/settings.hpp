@@ -130,7 +130,7 @@ class settings {
       pause_time_ = DEFAULT_PAUSE_TIME;
       verbosity_level_ = verbosity_normal;
       amplitude_ = DEFAULT_AMPLITUDE_INT / 100;
-      note_mode_ = note_list;
+      note_mode_ = note_mode_list;
       num_notes_ = 0;
     }
 
