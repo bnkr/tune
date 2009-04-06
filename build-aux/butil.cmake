@@ -96,3 +96,52 @@ macro(butil_parse_args allowed flags ignore arglist)
     set(pa_add "TRUE")
   endforeach()
 endmacro()
+
+# Set up standard values.  Add warnings and provide some extra error checking.  Also adds the
+# WANT_DOCS, WANT_DOCS_MAN options.
+macro(butil_standard_setup)
+  message(STATUS "Setting up standard build vars.")
+
+  if (NOT PROJECT_VERSION)
+    message(FATAL_ERROR "PROJECT_VERSION is not defined (blame maintiner).")
+  endif()
+
+  if (NOT PROJECT_NAME)
+    message(FATAL_ERROR "PROJECT_NAME is not defined (blame maintainer).")
+  endif()
+
+  if (CMAKE_BUILD_TYPE STREQUAL "")
+    message("Warning: CMAKE_BUILD_TYPE is empty.  This might not work.  Usually you want Release or RelWithDebInfo.")
+  endif()
+
+  string(REGEX REPLACE "^([0-9]+).*" "\\1" PROJECT_MAJOR ${PROJECT_VERSION})
+  string(REGEX REPLACE "^[^.]+\\.([0-9]+).*" "\\1" PROJECT_MINOR ${PROJECT_VERSION})
+  string(REGEX REPLACE "^[^.]+\\.[^.]+\\.([0-9]+).*" "\\1" PROJECT_PATCH ${PROJECT_VERSION})
+  string(REGEX REPLACE "^[^.]+\\.[^.]+\\.[^\\-]-([0-9]+).*" "\\1" PROJECT_SNAPSHOT ${PROJECT_VERSION})
+
+  # For different types of CMAKE_BUILD_TYPE, add -Wall.
+  if (CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall" STRING CACHE FORCE "CXX compiler parmeters when BUILD_TYPE is Debug")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall" STRING CACHE FORCE "CXX compiler parmeters when BUILD_TYPE is Debug")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -Wall" STRING CACHE FORCE "CXX compiler parmeters when BUILD_TYPE is Debug")
+  endif()
+
+  if (CMAKE_COMPILER_IS_GNUCC)
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall" STRING CACHE FORCE "C compiler parmeters when BUILD_TYPE is Debug")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall" STRING CACHE FORCE "C compiler parmeters when BUILD_TYPE is Release")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -Wall" STRING CACHE FORCE "C compiler parmeters when BUILD_TYPE is RelWithDebInfo")
+  endif()
+
+  if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Warning: 'Debug' build type is designed for maintainers.")
+    set(DOXYGEN_CMAKE_VERBOSE "YES")
+  endif()
+
+
+  include_directories("${CMAKE_SOURCE_DIR}/include/" "${CMAKE_BINARY_DIR}/include/")
+
+  option(WANT_DOCS "Install documentation - when off, all other docs options are off." YES)
+  option(WANT_DOCS_MAN "Install manpages if there are any." YES)
+ 
+  mark_as_advanced(WANT_DOCS_MAN)
+endmacro()

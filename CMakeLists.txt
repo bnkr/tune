@@ -7,46 +7,11 @@ set(PROJECT_NAME tune)
 set(PROJECT_VERSION "0.0")
 project(${PROJECT_NAME})
 
-string(REGEX REPLACE "^([0-9]+).*" "\\1" PROJECT_MAJOR ${PROJECT_VERSION})
-string(REGEX REPLACE "^[^.]+\\.([0-9]+).*" "\\1" PROJECT_MINOR ${PROJECT_VERSION})
-string(REGEX REPLACE "^[^.]+\\.[^.]+\\.([0-9]+).*" "\\1" PROJECT_PATCH ${PROJECT_VERSION})
-string(REGEX REPLACE "^[^.]+\\.[^.]+\\.[^\\-]-([0-9]+).*" "\\1" PROJECT_SNAPSHOT ${PROJECT_VERSION})
-
 include("build-aux/doxygen.cmake")
 include("build-aux/manpage.cmake")
 include("build-aux/btest.cmake")
 
-# General properties of the build
-include_directories("${CMAKE_SOURCE_DIR}/include/" "${CMAKE_BINARY_DIR}/include/")
-
-enable_testing()
-
-# For different types of CMAKE_BUILD_TYPE, add -Wall.
-if (CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall" STRING CACHE FORCE "CXX compiler parmeters when BUILD_TYPE is Debug")
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall" STRING CACHE FORCE "CXX compiler parmeters when BUILD_TYPE is Debug")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -Wall" STRING CACHE FORCE "CXX compiler parmeters when BUILD_TYPE is Debug")
-endif()
-
-if (CMAKE_COMPILER_IS_GNUCC)
-  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall" STRING CACHE FORCE "C compiler parmeters when BUILD_TYPE is Debug")
-  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall" STRING CACHE FORCE "C compiler parmeters when BUILD_TYPE is Release")
-  set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -Wall" STRING CACHE FORCE "C compiler parmeters when BUILD_TYPE is RelWithDebInfo")
-endif()
-
-if (CMAKE_BUILD_TYPE STREQUAL "")
-  message("Warning: CMAKE_BUILD_TYPE is empty!  Usually you want Release or RelWithDebInfo.")
-endif()
-
-# Global consts for libraries etc.
-
-# General options
-option(WANT_DOCS "Install documentation - when off, all other docs options are off." YES)
-option(WANT_DOCS_MAN "Install manpages if there are any." YES)
-
-mark_as_advanced(
-  WANT_DOCS_MAN
-)
+butil_standard_setup()
 
 ####################################################
 ## Checking for required headers; making config.h ##
@@ -107,10 +72,6 @@ add_subdirectory("test")
 ############################
 ## Building Documentation ##
 ############################
-
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(DOXYGEN_CMAKE_VERBOSE "YES")
-endif()
 
 add_doxygen_directives(
   TARGET doxygen
