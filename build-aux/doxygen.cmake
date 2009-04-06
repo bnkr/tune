@@ -15,6 +15,8 @@
 #
 # == Quick guide ==
 #
+# TODO: update this guide for the new api.
+#
 #   option(WANT_DOXYGEN ...
 #   option(WANT_DOXYGEN_REBUILD...
 #   if (WANT_DOXYGEN)
@@ -28,6 +30,7 @@
 #
 #   if (WANT_DOXYGEN_REBUILD)
 #     set(INSTALL_FROM "")
+#     add_custom_target(doxygen_dep ALL DEPENDS doxygen_main)
 #   else()
 #     set(INSTALL_FROM "${CMAKE_SOURCE_DIR}/doc/")
 #   endif()
@@ -51,6 +54,7 @@
 #
 # - you can't directly put the outputted HTML dir as an install target; you
 #   have to make it a dependancy of ALL with add_custom_target (for some reason)
+# - it is a good idea to configure GENERATE_x through cmake, not the doxyfile.
 # - watch the console for output from add_doxygen - it will turn certain things
 #   off if they cannot be fullfiled and it will tell you so.
 # - the macro doxygen_install.. requires some flags set by doxygen_setup...
@@ -58,354 +62,666 @@
 # 
 # == Complete Documentation ==
 #
-# FUNCTION: 
-# * add_doxygen(target_name template_file directives_list)
+#########################
+# FUNCTION: add_doxygen()
+#
+# add_doxygen(
+#   TARGET target
+#   DOXYFILE template_file
+#   [INPUTS dir...]
+#   [OUTPUTS type...]
+#   [OVERRIDES "var = value" ...]
+#   [INSTALL_FROM directory]
+#   [INSTALL_TO directory]
+#   [NO_INSTALL]
+#   [MAKE_ALL]
+# )
+#  
+# This will generate make targets and install targets for a doxygen doc.
 # 
-#   Make ${target_name}, and ${target_name}_pdf,dvi,ps.  Generate rules which
-#   will build the doxygen LaTeX stuff.  add_doxygen() attempts to depend
-#   on everything that doxygen needs (eg additional header/footer files)
-#   but if it didn't detect them all, touch the generated doxyfile, which is 
-#   always depended on:
-#   
-#     ${CMAKE_BINARY_DIR}/${target_name}-doxyfile-generated
-#   
-#   WARNING: 
-#     add_doxygen() forces some config options based on the dependancies
-#     found and configuration directives.  (Eg USE_PDFLATEX if turned off if 
-#     the pdflatex bin was not found).  However, in the interests of flexibility
-#     I don't force all that many and (crucially) I don't check the template file
-#     for changes.  This means that in the previous example, you could edit the 
-#     additions file and the changes won't be noticed.
-#     
-#     The real meaning of this is that if the template file has an output turned
-#     off then the install target for it will naturally be unable to work.  You
-#     should therefore probably use the directives_list to force all options to do
-#     with paths and directories.
-#     
-#     So in summary to the summary: it's a good idea to have a WANT_DOXYGEN_DOCS 
-#     and WANT_PDF etc, use the directives_list to force the values which 
-#     depend on them, and finally only generate install targets with respect to
-#     the WANT_x variables.  If X is on, then force it in the conf and generate
-#     the install target; otherwise force it off and don't generate the install.
-#     
-#     Note: the other doxygen_* functions/macros help with this task.
+# OUTPUTS is just an alias for GENERATE_x = YES where add_doxygen() is allowed
+# to override it if it cannot be build for some reason (this is a good idea).  
+# Currently outputs may be: html, latex (gives you pdf), and man.  It does
+# not accept things which are not directly implemented by add_doxygen, since 
+# most GENERATE_x require some external programs.
 #
-#   The doxygen binary chooses the path for outputs.  Its working directory is the 
-#   source dir, therefore if you wish to build to the binary directory (good idea) 
-#   then you need OUTPUT_DIRECTORY to be an absolute path.  Other output directories
-#   are are recommended be relative to this (although it *shouldn't* matter).
-#   Same goes for using empty output directories (doxygen will put the output
-#   in the main output dir but it doesn't actually *say* it will work).
-#   
-#   Look at ${CMAKE_BINARY_DIR}/${target_name}-doxyfile-forced for the options 
-#   which have been forced: your directives_list is at the start of this, with 
-#   add_doxygen()'s overrides after.
-#   
-#   target_name
-#     The targets ${target_name}, ${target_name}_pdf, ${target_name}_dvi,
-#     and ${target_name}_pdf are added.  Note that ${target_name} generates
-#     everything.  The other targets call the makefile for the latex outputs.
-#   
-#     If you want to have the docs built as part of your ordinary build, depend
-#     a target on one of these
-#     
-#   template_file
-#     The basis of doxygen's configuration.  The resultant configuration is 
-#     the template file  with the directives_list appended to it.
-#     
-#   directives_list
-#     Things which will always be overridden.  The directives list is simply 
-#     lines which go in a doxyfile:
-#     
-#       set(DIRECTIVES "OUTPUT_DIRECTORY = doc/" "INPUTS = include/")
-#       
-#     ${directives_list} does not need to contain anything, but it is normally useful
-#     to make option()s which control things like GENERATE_LATEX.  Note though that
-#     add_doxygen() might override them if it thinks they won't work.
-#   
-#   Warning: things may not function properly if doxygen builds output type
-#   into the same directory.
-#   
-#   Note: be sure to put list argument in quotes!
-# 
+# Currently it may be html, latex, or man.  Each of these outputs will be
+# forced to "yes" or "no" depending on OUTPUT; again they may be overridden
+# by OVERRIDES or by a missing dependency.
 #
-# MACRO:
-# * doxygen_setup_flags(flags_var target wants)
-#   
-#   Sets up a list in ${flags_var} which sets up a default set of sensible
-#   overrides for the directives_list parameter of add_doxygen().
+# NOTE: currently man is not installable because doxygen makes a huge messy
+# directory full of pages and they need some love.
 #
-#   The flags var will contain overrides for all paths related to $wants.
+# If you do not supply OUTPUT, then GENERATE_x will not be forced - it is 
+# left to the doxyfile to decide.  Generally this is more difficult to manage,
+# so specifying OUTPUT is encouraged.
 #
-#   The macro will set several useful paths (but remember that subsequent
-#   calls to this macro will wipe them!).  They are mostly designed for 
-#   having the documentaion mirrored in the sourcedir and installing from
-#   that unless the user requests a rebuild specifically.
+# INPUTS is an alias for a list of INPUTS in Doxyfile.  They are converted to
+# be relative to the srcdir; otherwise you get full paths in the documentation.
+# They always override what is in the doxyfile.
 #
-#   - DOXYGEN_OUT_DIR = $binary_dir/$target
-#   - DOXYGEN_REL_HTML_DIR = relative path to html output
-#   - DOXYGEN_REL_LATEX_DIR = relative path to latex output
-#   - DOXYGEN_REL_PDF_FILE = relative path to outputted pdf file
-#   - DOXYGEN_HTML_DIR = $doxygen_out/$rel_html_dir
-#   - DOXYGEN_LATEX_DIR = $doxygen_out/$rel_latex_dir
-#   - DOXYGEN_PDF_FILE = $doxygen_out/$rel_pdf_file
+# INSTALL_FROM assumes you have a mirror directory to install from.  The same 
+# install rules are used # but the documentation is not actually bound to 
+# them, so you need to respect the output directory conf. values.  As such 
+# it's a good idea to force them in the directives list.  If you don't then
+# add_doxygen() will force its own defaults.  The parameter is is intended for 
+# when you distribute your built docs in your source tarball so the user 
+# doesn't have to build them.
 #
-#   This macro also responds to the following variables:
-#   - DOXYGEN_EXAMPLE_PATH = a path to the example dir; default
-#                            $srcdir/examples
-#   - DOXYGEN_INPUT_PATHS = a *string* containing paths to the
-#                           dirs for doxygen to read from, default is
-#                           $srcdir/include
-#   - PROJECT_NAME = used for the PROJECT_NAME configuration
-#   - PROJECT_VERSION = used for the PROJECT_NUNBER configuration
+# INSTALL_TO is the base directory to put installs into, as INSTALL_TO/x_OUTPUT.
+# For example doc/html/.  If not set, it uses a sensible default (differeing 
+# for win32 and unix).
 #
-#   flags_var
-#     name of the variable to *append* to.
+# OVERRIDES is a key-value list of things which *always* override the the 
+# preferences of add_doxygen and the doxyfile.  OVERRIDES can be created be 
+# created by add_doxygen_directives().
 #
-#   target
-#     name of the target that will be passed to add_doxygen
+# If NO_INSTALL is present, then install targets won't be generated at all. 
 #
-#   wants
-#     List of keys that are wanted.  Recognised values are:
-#     - pdf
-#     - html
+# MAKE_ALL will cause the doxygen targets to be added to the `all' target.
+# If INSTALL_FROM is set, then MAKE_ALL defaults to off.
 #
-# MACRO: 
-# * doxygen_install_targets(doxygen_target wants output_dir)
+# Add doxygen can override any value in the doxyfile, but it will never 
+# override values in OVERRIDES.  It is easy to make things unbuildable by
+# using overrides however; for example if you force GENERATE_LATEX to YES 
+# but there is no makeindex, the latex output will not be buildable.
 #
-#   Adds "make install" targets for generated doxygen files using the
-#   variables which are set by doxygen_setup_flags.
-#   
-#   doxygen_target
-#     A target that was set up using add_doxygen()
+#################################
+# MACRO: add_doxygen_directives()
 #
-#   wants
-#     Same as doxygen_setup_flags
+# Populates ${output_var} with a var=val list for use by add_doxygen assuming 
+# you have several variables defined in advance.
 #
-#   output_dir
-#     Use this instead of DOXYGEN_OUT_DIR.  This is for installing from the
-#     source dir and means that the doxygen *will not* automatically be build
-#     with make all.
-# 
-#   doxygen_root
+# Essentially this is a way of configuring doxygen semi-automatically, and 
+# with error checking in advance.
 #
-#   The install locations are share/doc/${CMAKE_PROJECT_NAME}/.  Directories
-#   automatically have the useless stuff left over from doxygen stripped 
-#   out.
+# It also adds various cache options to help out:
+# - WANT_${TARGET} - whether to install docs or now (determines NO_INSTALL
+#   in FLAGS_VAR)
+# - WANT_${TARGET}_REBUILD - whether to install from DOCS_MIRROR or the binary
+#   directory.  Determines MAKE_ALL in FLAGS_VAR.  This option is not generated 
+#   if 
+# - ${TARGET}_DOXYFILE - filepath for the template file.  Sets DOXYFILE for 
+#   add_doxygen args.
+# - WANT_${TARGET}_PDF - whether to build/install pdfs - affects OUTPUT.
+# - WANT_${TARGET}_HTML - whether to build/install html - affects OUTPUT.
+#
+# add_doxygen_directives(
+#   [ARGS_VAR] args_for_add_doxygen_varnane
+#   TARGET target_name
+#   [OVERRIDES_VAR overrides_varname]
+#   [NO_USER_DOXYFILE]
+#   [NO_INSTALL | INSTALL <true|false>]
+#
+#   [INPUTS dir...]
+#   [VERSION project_version]
+#   [PROJECT project_name]
+#   [DOCS_MIRROR path]
+#   [DEFAULT_DOXYFILE file]
+#   [EXAMPLES dir]
+#   [SYSTEM]
+# )
+#
+# ARGS_VAR      - arguments which are passed directly to add_doxygen().
+# OVERRIDES_VAR - var=val list for add_doxygen OVERRIDES.  If not given, these
+#   are added to ARGS_VAR.  This is seperate because sometimes you want to add
+#   your own to the list.
+#
+# TARGET - TARGET argument to add_doxygen.  This is used to determine the name
+#   of various options.
+# DOCS_MIRROR - mirror directory of docs.  Usually you would write a script to
+#   copy the bindir docs into the srcdir before making you package.  If not 
+#   WANT_DOXYGEN_REBUILD, this sets INSTALL_FROM in the args.
+# NO_USER_DOXYFILE - if set, then the ${TARGET}_DOXYFILE option is not set and
+#   you must give your own to add_doxygen.
+# NO_INSTALL - overrides whatever this macro sets and passes NO_INSTALL to the
+#   ARGS_VAR.  This is useful if you have an extra option() which turns off 
+#   installing if all docs, instead of just pdf, html etc. for this one target.
+# INSTALL - an alias for NO_INSTALL so you can use some other variable to 
+#   determine the value directly.
+#
+# VERSION - when not present it uses ${PROJECT_VERSION}.
+# PROJECT - when not present it uses ${PROJECT_NAME}
+# SYSTEM  - when present the target system name is added to the version.
+# DEFAULT_DOXYFILE - sets DOXYFILE in ARGS_VAR if the user didn't specify one.
+#   It's also the default for ${TARGET}_DOXYFILE cache option.
+# EXAMPLES - if this is set then it is used for the examples path.  By default
+#   srcdir/examples is used.  It is OK if this doesn't exist.
+# INPUTS - directly alias INPUTS in add_doxygen(), purely for completeness.
+#
+# Example:
+#
+#   add_doxygen_directives(
+#     ARGS_VAR ad_args
+#     TARGET doxygen
+#     OVERRIDES_VAR ad_overrides
+#     DEFAULT_DOXYFILE ${srcdir}/Doxyfile
+#     DOCS_MIRROR ${srcdir}/doc/doxygen/
+#     INSTALL ${WANT_DOCS}
+#   )
+#
+#   add_doxygen(
+#     INPUTS "include"
+#     OVERRIDES ${ad_overrides}
+#     ${ad_args}
+#   )
 
 
+include("${CMAKE_SOURCE_DIR}/build-aux/butil.cmake")
 
 find_package(Doxygen)
 find_package(LATEX)
 
-find_program(CAT_EXE cat type)
-find_program(MAKE_EXECUTABLE make gmake nmake)
+find_program(CAT_EXE cat)
+if (NOT CAT_EXE)
+  find_program(CAT_EXE type)
+endif()
+
+find_program(MAKE_EXECUTABLE make)
+if (NOT MAKE_EXECUTABLE) 
+  find_program(MAKE_EXECUTABLE gmake)
+  if (NOT MAKE_EXECUTABLE)
+    find_program(MAKE_EXECUTABLE nmake)
+  endif()
+endif()
 mark_as_advanced(CAT_EXE MAKE_EXECUTABLE)
 
+# Parse a "var = value" list and turns them into cmake vars UNLESS they are blank.
+# Names of variables found get put in vars_found if it is given.
+macro(add_doxygen_parse_conf_list var_vals vars_found)
+  foreach (vv ${var_vals}) 
+    string(REGEX REPLACE "[\t\n ]*([A-Z0-9_a-z]+)[\t ]*=.*" "\\1" var "${vv}")
+    # TODO: 
+    #   this regexp is wrong in the case that we have multiple values specified
+    #   like x = "v1" "v2"  I guess I need 
+    #
+    #     "[^=]*=[\t ]*([^#]+).*"
+    #
+    string(REGEX REPLACE "[\t\n ]*[A-Z0-9_a-z]+[\t ]*=[\t\n ]*((\"[^\"]*\")|([^\t\n ]*))[\t\n ]*" "\\1" val "${vv}")
+    string(TOUPPER "${var}" var)
+    if (NOT vars_found STREQUAL "") 
+      list(APPEND ${vars_found} "${var}")
+    endif()
 
+    if (NOT "${val}" STREQUAL "")
+      add_doxygen_override_var("${var}" "${val}")
+    endif()
+  endforeach()
+endmacro()
+
+# Sets each var = val to a conf_${var} = ${val}
+macro(add_doxygen_parse_conf template_file) 
+  file(READ ${template_file} file)
+  
+  string(
+    REGEX MATCHALL "(^|\n)[A-Za-z_0-9]+[^=]*=[\t ]*[^#]*(\n|$)" 
+    var_vals ${file}
+  )
+
+  add_doxygen_parse_conf_list("${var_vals}" "")
+endmacro()
+
+# Reset a var and warn that we are doing it if it is defined and not blank.
+macro(add_doxygen_override_var varname value)
+  set(var "conf_${varname}")
+  if (DOXYGEN_CMAKE_VERBOSE) 
+    if (DEFINED ${var})
+      if (NOT ${var} STREQUAL "${value}") 
+        message(STATUS "add_doxygen(): warning: overriding var ${varname}: '${${var}}' with '${value}'.")
+      endif()
+    endif()
+  endif()
+  set(${var} "${value}")
+endmacro()
+
+# Retroativlely set a default.  This way the conf_list function won't print 
+# warnings for overriding default values (which is totally Ok)
+macro(add_doxygen_set_ifndef varname value)
+  if (NOT DEFINED conf_${varname})
+    set(conf_${varname} ${value})
+  endif()
+endmacro()
+
+# Override the union of the vars given as option arguments.
+function(add_doxygen_write_overrides file)
+  set(vars ${ARGV})
+  list(REMOVE_AT vars 0 "${vars}")
+  foreach (var ${vars})
+    if (NOT visited_${var})
+      set(visited_${var} TRUE)
+      set(value ${conf_${var}})
+      file(APPEND ${file} "${var} = ${value}\n")
+    endif()
+  endforeach()
+endfunction()
+
+# 
+macro(add_doxygen_check_var varname reserve_varname)
+  if (NOT DEFINED ${varname})
+    if (NOT DEFINED ${other_var})
+      message(FATAL_ERROR "Missing required argument '${varname}'.")
+    else()  
+      set(${varname} ${other_var})
+    endif()
+  endif()
+endmacro()
+
+# Sets variables for a subsequent call to add_doxygen.
+macro(add_doxygen_directives)
+  butil_parse_args(
+    "ARGS_VAR;TARGET;OVERRIDES_VAR;VERSION;PROJECT;DOCS_MIRROR;DEFAULT_DOXYFILE;EXAMPLES;INSTALL;INPUTS" 
+    "NO_USER_DOXYFILE;SYSTEM;NO_INSTALL" 
+    "" 
+    "${ARGV}"
+  )
+
+  if (NOT arg_ARGS_VAR)
+    set(arg_ARGS_VAR ${ARGV0})
+  endif()
+
+  if (NOT arg_ARGS_VAR)
+    message(FATAL_ERROR "add_doxygen_directives(): ARGS_VAR argument is required.")
+  endif()
+
+  if (NOT arg_TARGET)
+    message(FATAL_ERROR "add_doxygen_directives(): TARGET argument is required.")
+  endif()
+
+  list(APPEND ${arg_ARGS_VAR} "TARGET" "${arg_TARGET}")
+
+  if (NOT arg_PROJECT)
+    set(arg_PROJECT "${CMAKE_PROJECT_NAME}")
+  endif()
+
+  if (NOT arg_VERSION)
+    set(arg_VERSION "${PROJECT_VERSION}")
+  endif()
+
+  if (arg_SYSTEM)
+    set(arg_VERSION "${arg_VERSION}-${CMAKE_SYSTEM_NAME}")
+  endif()
+
+  set(overrides)
+  list(APPEND overrides "PROJECT_NAME = ${arg_PROJECT}")
+  list(APPEND overrides "PROJECT_NUMBER = ${arg_VERSION}")
+
+  if (DEFINED arg_EXAMPLES)
+    list(APPEND overrides "EXAMPLE_PATH = ${arg_EXAMPLES}")
+  else()
+    list(APPEND overrides "EXAMPLE_PATH = ${CMAKE_SOURCE_DIR}/examples")
+  endif()
+
+  if (arg_INPUTS)
+    list(APPEND ${arg_ARGS_VAR} "INPUTS" ${arg_INPUTS})
+  endif()
+
+  if (arg_NO_INSTALL)
+    list(APPEND ${arg_ARGS_VAR} NO_INSTALL)
+  elseif(DEFINED arg_INSTALL AND NOT arg_INSTALL)
+    list(APPEND ${arg_ARGS_VAR} NO_INSTALL)
+  endif()
+
+  string(TOUPPER "${arg_TARGET}" target_upcase)
+  list(APPEND ${arg_ARGS_VAR} OUTPUTS)
+
+  option(WANT_${target_upcase}_PDF "Install PDF from doxygen (needs pdfLaTeX)" YES)
+  if (WANT_${target_upcase}_PDF)
+    list(APPEND ${arg_ARGS_VAR} "latex")
+  endif()
+
+  option(WANT_${target_upcase}_HTML "Install HTML made by doxygen" YES)
+  if (WANT_${target_upcase}_HTML)
+    list(APPEND ${arg_ARGS_VAR} "html")
+  endif()
+
+  if (arg_OVERRIDES_VAR)
+    set(${arg_OVERRIDES_VAR} ${overrides})
+  else()
+    list(APPEND ${arg_ARGS_VAR} OVERRIDES ${overrides})
+  endif()
+
+  if (arg_DEFAULT_DOXYFILE)
+    set(default_dox "${CMAKE_SOURCE_DIR}/Doxyfile.default")
+  else()
+    set(default_dox "${arg_DEFAULT_DOXYFILE}")
+  endif()
+
+  option(WANT_${target_upcase}_REBUILD "Regenerate doxygen and install that instead of the distributed docs." NO)
+  if (WANT_${TARGET}_REBUILD)
+    list(APPEND ${arg_ARGS_VAR} MAKE_ALL)
+  elseif (arg_DOCS_MIRROR)
+    list(APPEND ${arg_ARGS_VAR} INSTALL_FROM "${arg_DOCS_MIRROR}")
+  endif()
+
+  mark_as_advanced(
+    WANT_${target_upcase}_REBUILD 
+    WANT_${target_upcase}_HTML 
+    WANT_${target_upcase}_PDF
+  )
+
+  if (arg_NO_USER_DOXYFILE)
+    list(APPEND ${arg_ARGS_VAR} DOXYFILE "${default_dox}")
+  else()
+    set(dox_cachevar "${target_upcase}_DOXYFILE_TEMPLATE")
+    set("${dox_cachevar}" "${default_dox}" CACHE PATH
+      "Base doxyfile.  Mostly useful for developers.  Certain vars will be overwritten by cmake (in/output paths mostly).")
+
+    mark_as_advanced(${dox_cachevar})
+    list(APPEND ${arg_ARGS_VAR} DOXYFILE "${${dox_cachevar}}")
+  endif()
+
+  # message("${${arg_ARGS_VAR}}")
+  # message("${${arg_OVERRIDES_VAR}}")
+endmacro()
+
+# Create doxygen targets based on $target_name and the doxyfile $template_file.
+# $directives_list overrides values from the template_file.
 function(add_doxygen target_name template_file directives_list)
-  # TODO: could do with the ability to specify further dependancies,
-  #       eg force a rebuild whenever srcdir changes.
+  # TODO: remove these args when I'm done porting.
 
-  # TODO: need to use a relative dir as the input dirs because otherwise the
-  #       include paths appear with the full /home/... path in there.  Maybe
-  #       that's supposed to happen in another function?
-
-  # TODO: if doxyfile-force is deleted then the build breaks; we need to
-  #       set that to depend on the re-configure build depend.  It is rebuild_cache
-  #       for me but is that guaranteed?
-
-  if (NOT DOXYGEN_EXECUTABLE)
-    message(STATUS "Ignoring doxygen targets due to no doxygen exe.")
-  endif()
-
-  message(STATUS "Adding doxygen target ${target_name} from template file ${template_file}.")
-  message("Note: output paths and generators should not be changed in the template file without re-configuring")
-
-  # TODO silly limitation -- need to cause the buildsystem to reconfigure if the base doxyfile changes
-
-  if(NOT CAT_EXE) 
-    message("Guessing the name of cat/type as `cat'.  If doxygen doesn't work, manually define all paths in the base doxyfile.")
-    set(CAT_EXE cat)
-  endif()
+  # TODO: handle confs relevant for installation:
+  # - HTML_FILE_EXTENSION 
+  # - DOT_IMAGE_FORMAT 
+  #
+  # I suggest forcing them all for now, then when we have the way of installing
+  # done it can be communicated.
   
-  set(doxygen_conf_file "${CMAKE_BINARY_DIR}/${target_name}-doxyfile-generated")
-  set(additions_file "${CMAKE_BINARY_DIR}/${target_name}-doxyfile-forced")
- 
-  message("Doxygen forced vars are in ${additions_file}.")
+  # TODO: 
+  #   Handle confs relevant for dependencies.  Most of these are just for 
+  #   erroring when it's not present instead of waiting for doxygen to do it.
+  #   Since it should all build with make all, there's not much point in 
+  #   putting rebuild depends.
+  #
+  # - MSCGEN_PATH 
+  # - RTF_STYLESHEET_FILE 
+  # - RTF_EXTENSIONS_FILE
+  # - HTML_STYLESHEET - we must simply check if it exists I think... perhaps also move it 
+  #   into the dir?  Don't know what dooxygen does with it.
+  # - HTML_HEADER - main target must depend on this
+  # - HTML_FOOTER - and this
+  # - LATEX_HEADER - latex target must depend on this (so main, and make pdf)
 
-  ## Detect paths and vars defined by the template file and the overrides ##
-  set(conf_output_dir "doxygen")
-  set(conf_generate_latex YES)
-  set(conf_generate_html YES)
-  set(conf_generate_man NO)
-  
-  set(conf_html_dir "html")
-  set(conf_latex_dir "latex")
-  set(conf_man_dir "man")
-  set(conf_use_pdflatex YES)
-  
-  # Stuff to match (code written which depends on it):
-  # - OUTPUT_DIRECTORY
-  # - GENERATE_LATEX LATEX_OUTPUT USE_PDFLATEX
-  # - GENERATE_HTML HTML_OUTPUT
-  # - GENERATE_MAN MAN_OUTPUT
-  #  
-  # Confs relevant for installation:
-  # - HTML_FILE_EXTENSION DOT_IMAGE_FORMAT 
-  # 
-  # add_doxygen doesn't have explicit support for this yet:
-  # - GENERATE_RTF RTF_OUTPUT
-  # - GENERATE_HTMLHELP CHM_FILE
+  # TODO: 
+  # more options to add support for:
+  #
+  # - GENERATE_RTF , RTF_OUTPUT
+  # - GENERATE_HTMLHELP , CHM_FILE
   #   - GENERATE_CHI (means a seperate file comes with HTMLHELP)
   # - GENERATE_AUTOGEN_DEF 
   # - GENERATE_DOCSET (something to do with xcode `doxygen will generate a Makefile 
   #   in the HTML output directory'.  It has a make install)
   #   - maybe force this off since I don't know how it works.
-  # - GENERATE_XML XML_OUTPUT
-  # 
-  # There are other things, like header files etc which we should depend
-  # on: MSCGEN_PATH, RTF_STYLESHEET_FILE RTF_EXTENSIONS_FILE HTML_STYLESHEET
-  # HTML_HEADER HTML_FOOTER LATEX_HEADER 
-  # 
-  # TODO: 
-  #   it might be better to just require that all these parameters are forced... it
-  #   will probably break install targets otherwise... the main tricky thing is that
-  #   we turn stuff off that *might* have been on initially which is confusing...
-  #   
-  #   Solutions?
-  #   - require all contentious things to be forced
-  #   - detect all contentious things everywhere and error immediately if they are not 
-  #     enforcable
-  #     - best, but the user needs to have a way to work around it 
-  #       - suggestion in docs that the maintainer adds a WANT_x doc?
-  #     - hard work
-  # TODO:
-  # - need to deal with it properly when the paths are not complete (they are assumed to 
-  #   be in the srcdir.  This is necesasry or the dependancies might not work properly.
+  # - GENERATE_XML ,XML_OUTPUT
 
-  file(READ ${template_file} file)
-  
-  # TODO: seriously?  This  should at least be done in a function somehow.
-  #  - first we should 
-  string(
-    REGEX MATCH
-    "[Oo][Uu][Tt][Pp][Uu][Tt]_[Dd][Ii][Rr][Ee][Cc][Tt][Oo][Rr][Yy][^=]*=[\t\r ]*([^#]*).*" 
-    "\\1" out "${file}"
+  butil_parse_args(
+    "TARGET;DOXYFILE;INPUTS;OUTPUTS;OVERRIDES;INSTALL_FROM;INSTALL_TO" 
+    "MAKE_ALL;NO_INSTALL" 
+    "" 
+    "${ARGV}"
   )
-  
-  string(
-    REGEX MATCH
-    "USE_PDFLATEX[^=]*=[\t\r ]*([^#]*).*" 
-    "\\1" out "${file}"
-  )
-  
-#   message("${out}")
-  
-  ## Generate the overrides file (also detect some configs in it) ##
-  
-  file(WRITE ${additions_file} "")
-  foreach(iter ${directives_list}) 
-    # TODO: match all the required vars again
-    
-    if (${iter} MATCHES "[Oo][Uu][Tt][Pp][Uu][Tt]_[Dd][Ii][Rr][Ee][Cc][Tt][Oo][Rr][Yy]")
-      string(
-        REGEX REPLACE 
-        "[^=]*=[\t\r ]*([^#]*).*" 
-        "\\1" doxygen_output_dir "${iter}"
-      )
-    else() 
-      message("not it: ${iter}")
-    endif()
-    
-    file(APPEND ${additions_file} "${iter}\n")
-  endforeach()
 
-  # TODO: also check that if latex, latexdir set etc etc.  We allow a blank
-  #   latexdir tho because doxygen will just put it in the maindir (check this)
+  if (arg_TARGET)
+    set(target_name ${arg_TARGET})
+  elseif(NOT target_name)
+    message(FATAl_ERROR "doxygen_add(): requires a TARGET name.")
+  endif()
 
-  if (NOT doxygen_output_dir)
-    message("No doxygen output dir given.  Doxygen targets can't be added.")
+  message(STATUS "Adding doxygen target ${target_name} from template file ${template_file}.")
+
+  if (arg_DOXYFILE)
+    set(template_file ${arg_DOXYFILE})
+  elseif(NOT template_file)
+    message(FATAl_ERROR "doxygen_add(): requires a DOXYFILE name.")
+  endif()
+
+  if (arg_OVERRIDES)
+    set(directives_list ${arg_OVERRIDES})
+  endif()
+
+  # For compatibility we don't fail here
+  if (NOT arg_OUTPUTS)
+    message(STATUS "add_doxygen(): warning: no outputs selected.")
+  endif()
+
+  if (NOT DOXYGEN_EXECUTABLE)
+    message(STATUS "Ignoring doxygen targets due to no doxygen exe.")
     return()
   endif()
 
-  if (NOT conf_generate_html AND NOT conf_generate_man AND NOT conf_generate_latex)
-    message(STATUS "I'm confused; doxygen doesn't seem to be set to generate anything.")
-    return()
+  # The full conf which doxygen will use. 
+  set(doxygen_conf_file "${CMAKE_BINARY_DIR}/${target_name}-doxyfile-generated")
+  # Forced values which we make the full conf from.
+  set(additions_file "${CMAKE_BINARY_DIR}/${target_name}-doxyfile-forced")
+
+  if (DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "Doxygen forced vars are in ${additions_file}.")
   endif()
 
-  ## Config forces based on found programs ##
+  # Stuff which the configuration means we have to force (will be generated as we go)
+  set(extra_force)
 
-  if (NOT DOXYGEN_DOT_PATH)
-    file(APPEND ${additions_file} "HAVE_DOT = no\n")
-  else()
-    file(APPEND ${additions_file} "DOT_PATH = ${DOXYGEN_DOT_PATH}\n")
+  # Stuff that we must always force.
+  set(always_force
+    MAKEINDEX_CMD_NAME LATEX_CMD_NAME DOT_PATH
+    OUTPUT_DIRECTORY
+    HTML_OUTPUT LATEX_OUTPUT MAN_OUTPUT
+    USE_PDFLATEX LATEX_BATCHMODE 
+    INPUT
+  )
+
+  if (DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "add_doxygen(): parsing configuration file.")
   endif()
-  file(APPEND ${additions_file} "LATEX_BATCHMODE = yes\n")
-  
-  if (conf_generate_latex) 
-    if (LATEX_COMPILER AND PDFLATEX_COMPILER) 
-      # Let the template file choose.  Vars are forced anyway because if they get
-      # changed later we can't detect it.
-      if (conf_use_pdflatex)
-        file(APPEND ${additions_file} "USE_PDFLATEX = yes\n")
-        file(APPEND ${additions_file} "LATEX_CMD_NAME = ${PDFLATEX_COMPILER}\n")
+  add_doxygen_parse_conf(${template_file})
+
+  # We force these vars so it's easier to install but the user can still override them
+  # if necessary. 
+  if (DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "add_doxygen(): overriding with doxygen.cmake's forced values.")
+  endif()
+  add_doxygen_override_var(OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${target_name}")
+  add_doxygen_override_var(HTML_OUTPUT      "html")
+  add_doxygen_override_var(LATEX_OUTPUT     "latex")
+  add_doxygen_override_var(MAN_OUTPUT       "man")
+  # This is forced because otherwise the makefile blocks forever if there is ever
+  # some kind of error.
+  add_doxygen_override_var(LATEX_BATCHMODE  "YES")
+  # TODO: here override extensions and so on - anything else which affects paths.
+
+  # User overides which we are allowed to override right back if we want :).
+  # For compatibility, we allow the doxyfile to specify this.
+
+  # TODO: use pdf, ps instead of LaTeX..
+  if (arg_OUTPUTS)
+    # TODO: validate these names.
+    foreach (o ${arg_OUTPUTS})
+      string(TOUPPER ${o} o)
+      set(out_${o} "YES")
+    endforeach()
+
+    set(possible_outs "HTML" "MAN" "LATEX")
+    foreach (o ${possible_outs})
+      list(APPEND extra_force GENERATE_${o})
+      if (out_${o}) 
+        add_doxygen_override_var(GENERATE_${o} "YES")
       else()
-        file(APPEND ${additions_file} "USE_PDFLATEX = no\n")
-        file(APPEND ${additions_file} "LATEX_CMD_NAME = ${LATEX_COMPILER}\n")
+        add_doxygen_override_var(GENERATE_${o} "NO")
       endif()
-    elseif(PDFLATEX_COMPILER)
-      file(APPEND ${additions_file} "USE_PDFLATEX = yes\n")
-      file(APPEND ${additions_file} "LATEX_CMD_NAME = ${PDFLATEX_COMPILER}\n")
-    elseif(LATEX_COMPILER)
-      file(APPEND ${additions_file} "USE_PDFLATEX = no\n")
-      file(APPEND ${additions_file} "LATEX_CMD_NAME = ${LATEX_COMPILER}\n")
-    else()
-      message("Generate LaTeX was on but no compiler was found.")
-      file(APPEND ${additions_file} "GENERATE_LATEX = no\n")
-      set(conf_generate_latex NO)
-    endif()
-    
-    # TODO: there's other stuff: if it doesn't have a grapghics converter we need to
-    #   turn off *all* graphics.  I can't remember what teh graphics prog was anyway.
-    #   This only applies for LaTeX generation!
+    endforeach()
   endif()
+
+  if (DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "add_doxygen(): overriding confs based on external programs.")
+  endif()
+
+  # This allows the user to set HAVE_DOT
+  if (NOT DOXYGEN_DOT_PATH)
+    list(APPEND extra_force "HAVE_DOT")
+    add_doxygen_override_var(HAVE_DOT  "NO")
+  else()
+    # Actually this is usually just /usr/bin
+    add_doxygen_override_var(DOT_PATH "${DOXYGEN_DOT_PATH}")
+  endif()
+
+  if (LATEX_COMPILER AND PDFLATEX_COMPILER) 
+    # We still need to force PDFLATEX later or the cmd name will be wrong.
+    if (conf_USE_PDFLATEX OR NOT DEFINED conf_USE_PDFLATEX OR conf_USE_PDFLATEX STREQUAL "")
+      add_doxygen_override_var(USE_PDFLATEX    "YES")
+      add_doxygen_override_var(LATEX_CMD_NAME  "${PDFLATEX_COMPILER}")
+    else()
+      add_doxygen_override_var(USE_PDFLATEX    "NO")
+      add_doxygen_override_var(LATEX_CMD_NAME  "${LATEX_COMPILER}")
+    endif()
+  elseif(PDFLATEX_COMPILER)
+    add_doxygen_override_var(USE_PDFLATEX    "YES")
+    add_doxygen_override_var(LATEX_CMD_NAME  "${PDFLATEX_COMPILER}")
+  elseif(LATEX_COMPILER)
+    add_doxygen_override_var(USE_PDFLATEX    "NO")
+    add_doxygen_override_var(LATEX_CMD_NAME  "${LATEX_COMPILER}")
+  else()
+    if (conf_GENERATE_LATEX)
+      message(STATUS "add_doxygen(): error: no LaTeX compilers - LaTeX will be overridden.")
+    endif()
+    add_doxygen_override_var(GENERATE_LATEX  "NO")
+    list(APPEND extra_force "GENERATE_LATEX")
+  endif()
+
+  # This bit is interesting because it implies that the template file might be allowed 
+  # to make GENERATE_x overrides.  Certainly it seems possible.
+  if (MAKEINDEX_COMPILER)
+    add_doxygen_override_var(MAKEINDEX_CMD_NAME "${MAKEINDEX_COMPILER}")
+  else()
+    if (conf_GENERATE_LATEX)
+      message(STATUS "add_doxygen(): error: no makeindex compiler - LaTeX will be overridden.")
+    endif()
+    add_doxygen_override_var(GENERATE_LATEX  "NO")
+    list(APPEND extra_force "GENERATE_LATEX")
+  endif()
+
+  # TODO: 
+  #   LaTeX graphics.  We need to force a bunch of options if there is no 
+  #   suitable graphics conversion program.  Eps2pdf is one of the files
+  #   that we need.  Also dvips is referenced.  
+  #   - HAVE_DOT, CLASS_GRAPH, COLLABORATION_GRAPH, GROUP_GRAPHS, INCLUDED_BY_GRAPH, INCLUDE_GRAPH...
+  #   - ehh... too much.  Just have-dot= off will do.
+  #   - then CLASS_DIAGRAMS (class diagrams is a fallback case) and HAVE_DOT = off
+  #   - also need to warn that NO graphics is on when LaTeX is emabled or the user
+  #     won't know wtf.
+
+  # if (NOT EPS2PDF_EXE)
+  #   if (conf_ENABLE_LATEX)
+  #     if (HAVE_DOT OR CLASS_DIAGRAMS)
+  #       message(STATUS "add_doxygen(): warning: no eps2pdf.  Graphial output is disabled unless LaTeX is turned off.")
+  #     endif()
+  #
+  #     force have_dot = NO
+  #     force CLASS_DIAGRAMS = NO
+  #   endif()
+  # endif()
+  #
+
+
+  # TODO:
+  #   There are other issues with latex output.  Mostly that pdflatex will
+  #   *only* put out a pdf.  It's only if we have other values that it works
+  #   with pdf and dvi.
+
   
-  ## Configure paths ##
-  
-  
-  # TODO: only if doxygen_output_dir is relative, then prepend binary_dir to it.
-  set(absolute_doxygen_path "${CMAKE_BINARY_DIR}/${conf_output_dir}")
+  # This is of course allowed to override the stuff we already though was sensible.
+  if (DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "add_doxygen(): overriding with the user's forced values.")
+  endif()
+  add_doxygen_parse_conf_list("${directives_list}" overridden_vars)
+
+  if (NOT IS_ABSOLUTE "${conf_OUTPUT_DIRECTORY}")
+    add_doxygen_override_var(OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${conf_OUTPUT_DIRECTORY}")
+  endif()
+
+  # We got this as an argument, bloody ages ago :)
+  if (arg_INPUTS) 
+    set(input_over)
+    foreach (${i} ${arg_INPUTS})
+      set(input_over "${input_over} \"${i}\"")
+    endforeach()
+  endif()
+
+  if (input_over)
+    add_doxygen_override_var(INPUT "${input_over}")
+  endif()
+
+  # Retroactively set the defaults now to avoid getting warnings earlier.
+  add_doxygen_set_ifndef(GENERATE_LATEX  "YES")
+  add_doxygen_set_ifndef(GENERATE_HTML   "YES")
+  add_doxygen_set_ifndef(GENERATE_MAN    "NO")
+  add_doxygen_set_ifndef(USE_PDFLATEX    "YES")
+
+  if (NOT conf_GENERATE_HTML AND NOT conf_GENERATE_MAN AND NOT conf_GENERATE_LATEX)
+    message(STATUS "add_doxygen(): warning: doxygen doesn't seem to be set to generate anything.")
+  endif()
+
+  if (NOT conf_INPUT)
+    message(FATAL_ERROR "add_doxygen(): no INPUT paths given.")
+  endif()
+
+  # TODO: 
+  #   here override conf_INPUT to be relative to the srcdir. 
+  #   Tricky because there can be multiple of them.
+  # string(REGEX MATCHALL "(\"[^\"]+\")|([^ ]+)" inputs "${conf_INPUT}")
+  # foreach (i ${inputs})
+  #   string(REGEX REPLACE "\"" "" i ${i})
+  #   set relative to srcdir.
+  #   append to another list like \"${i}\"
+  #   message("${i}")
+  # endforeach()
+  # add_doxygen_override_var(INPUT  "")
+
+  # Write the additions file with the things we must force if they are set.
+  if (DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "add_doxygen(): writing conf force file: ${additions_file}.")
+  endif()
+  file(WRITE ${additions_file} "")
+
+  # Force the union of all these vars.
+  add_doxygen_write_overrides(
+    "${additions_file}"
+    ${always_force}
+    ${extra_force}
+    ${overridden_vars}
+  )
+
+  if (DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "add_doxygen(): generate latex: ${conf_GENERATE_LATEX}")
+    message(STATUS "add_doxygen(): generate html:  ${conf_GENERATE_HTML}")
+    message(STATUS "add_doxygen(): generate html:  ${conf_GENERATE_MAN}")
+  endif()
+
+  # TODO: add this lot to another function - much easier to read :)
+  set(absolute_doxygen_path "${conf_OUTPUT_DIRECTORY}")
   string(REGEX REPLACE "\\/[\\/]+" "/" absolute_doxygen_path ${absolute_doxygen_path})
   
   # TODO: how does doxygen deal with a complete path for, eg latex?  Is it allowed?  
   #   If so we must detect it.
+
+  # Configure i/o paths.
+
+  # This always invalid output lets us depend on the main target and have the
+  # main target always rebuild.  Normally it's not possible to have an always 
+  # invalid target which a normal target depends on unless they are both top-
+  # level targets
+  string(RANDOM LENGTH 32 rand)
+  set(main_output  "${target_name}/${rand}")
+  set(latex_output "${absolute_doxygen_path}/${conf_LATEX_OUTPUT}")
+  set(html_output  "${absolute_doxygen_path}/${conf_HTML_OUTPUT}")
+  set(man_output   "${absolute_doxygen_path}/${conf_MAN_OUTPUT}")
   
-  set(absolute_latex_path "${absolute_doxygen_path}/${conf_latex_dir}")
-  set(absolute_html_path "${absolute_doxygen_path}/${conf_html_dir}")
-  set(absolute_man_path "${absolute_doxygen_path}/${conf_man_dir}")
+  set(pdf_output  "${latex_output}/refman.pdf")
+  set(ps_output   "${latex_output}/refman.ps")
+  set(dvi_output  "${latex_output}/refman.dvi")
   
-  set(pdf_output "${absolute_latex_path}/refman.pdf")
-  set(ps_output "${absolute_latex_path}/refman.ps")
-  set(dvi_output "${absolute_latex_path}/refman.dvi")
-  
-  set(main_outputs "${absolute_doxygen_path}")
-  if (conf_generate_man) 
-    set(main_outputs "${main_outputs} ${absolute_man_path}")
+  if (DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "add_doxygen(): adding doxygen output commands.")
   endif()
-  if (conf_generate_html)
-    set(main_outputs "${main_outputs} ${absolute_html_path}")
-  endif()
-  if (conf_generate_latex)
-    set(main_outputs "${main_outputs} ${absolute_latex_path}")
-  endif()
-  
-  
-  message("** LATEX: ${absolute_latex_path}")
-  message("** PDF:   ${pdf_output}")
- 
-  ## Add targets based on the paths ##
-  
+
   # Applies to whatever the cwd is .
   set_property(
     DIRECTORY APPEND 
@@ -413,115 +729,163 @@ function(add_doxygen target_name template_file directives_list)
     ${additions_file} ${doxygen_conf_file} ${absolute_doxygen_path}
   )
   
+  # Finally we can get going with the targets.
+  # Initial builder target:
+  add_custom_command(
+    OUTPUT ${additions_file}
+    COMMAND ${CMAKE_COMMAND} .
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    VERBATIM
+    COMMENT "Regenerate build system for ${additions_file}."
+  )
+
+  # Make the generated doxyfile.
   add_custom_command(
     OUTPUT ${doxygen_conf_file}
     COMMAND ${CAT_EXE} ${template_file} > ${doxygen_conf_file}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMAND ${CAT_EXE} ${additions_file} >> ${doxygen_conf_file}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    DEPENDS ${template_file}
+    DEPENDS ${template_file} ${additions_file} 
     COMMENT "Generating doxygen config file based on the template and forced values."
     VERBATIM
   )
-  
+ 
+  # Always invalid target to call doxygen.
   add_custom_command(
-    OUTPUT ${absolute_doxygen_path} 
-    COMMAND ${DOXYGEN_EXECUTABLE} ${doxygen_conf_file}
+    OUTPUT  "${main_output}"
+    COMMAND "${DOXYGEN_EXECUTABLE}" "${doxygen_conf_file}"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     DEPENDS ${doxygen_conf_file}
     COMMENT "Generating main doxygen (html, .tex files ...)"
     VERBATIM 
   )
   
-  # TODO dynamic paths; also if this works, then always use directories as the output.
-  add_custom_command(
-    OUTPUT "${CMAKE_BINARY_DIR}/doxygen/html"
-    DEPENDS ${absolute_doxygen_path} 
-    COMMENT "Phony target to generate HTML."
-    VERBATIM 
-  )
-  
-  # TODO: is this really needed?  Also, make the path dynamic.  Also it's wrong
-  #   anyway because the makefile might not get modified
-  add_custom_command(
-    OUTPUT "${CMAKE_BINARY_DIR}/doxygen/latex/Makefile"
-    DEPENDS ${absolute_doxygen_path} 
-    COMMENT "Phony target to generate Makefile."
-    VERBATIM 
-  )
-  
   add_custom_target(
     ${target_name}_main
-    DEPENDS "${absolute_doxygen_path}"
-    COMMENT "Generating HTML, LaTeX, man (if doxyfile changed)."
+    DEPENDS "${main_output}"
+    COMMENT "Generating HTML, LaTeX, man..."
   )
   
-  if (conf_generate_latex)
-    if (NOT LATEX_COMPILER AND NOT PDFLATEX_COMPILER) 
-      message(STATUS "No LaTeX found.  Doxygen LaTeX-based targets not added.")
+  # Deal with LaTeX outputs.
+  if (conf_GENERATE_LATEX AND NOT MAKE_EXECUTABLE)
+    message(STATUS "Make exe can't be found: doxygen LaTeX is not buildable by cmake.")
+  elseif (conf_GENERATE_LATEX)
+    # TODO:  
+    #   if not conf_USE_PDFLATEX then we have a bunch of other targets, but I 
+    #   would have to emulate themin that ase.
+
+    # Retroactively add the latex output to the main target.
+    add_custom_command(
+      OUTPUT  "${latex_output}"
+      DEPENDS "${main_output}"
+    )
+
+    add_custom_command(
+      OUTPUT "${pdf_output}"
+      COMMAND ${MAKE_EXECUTABLE} "pdf"
+      WORKING_DIRECTORY "${latex_output}"
+      DEPENDS "${latex_output}" 
+      COMMENT "Calling doxygen's generated makefile for pdf (this is error prone!)."
+      VERBATIM 
+    )
+
+    add_custom_target(
+      "${target_name}_pdf" DEPENDS  ${pdf_output}
+    )
+  endif()
+
+  set(makeall)
+  if (arg_MAKE_ALL) 
+    if (DOXYGEN_CMAKE_VERBOSE)
+      message(STATUS "Doxygen targets will be made with make all.")
+    endif()
+    set(makeall ALL)
+  endif()
+
+  # Finally the _all target
+  set(deps ${main_output})
+  if (conf_GENERATE_LATEX)
+    list(APPEND deps ${pdf_output})
+  endif()
+  add_custom_target(${target_name}_all ${makeall} DEPENDS ${deps})
+
+  # And now add install targets.
+  if (NOT arg_NO_INSTALL)
+    # TODO: 
+    #   won't work if the slashes are wrong or they're not correctly relative... need an
+    #   is_the_same_file.
+    if (NOT arg_INSTALL_FROM STREQUAL "${conf_OUTPUT_DIRECTORY}")
+      set(from_bindir FALSE)
     else()
-      message(STATUS "Adding doxygen LaTeX targets.")
-      
-      if (NOT MAKE_EXECUTABLE)
-        message("Make exe can't be found: doxygen LaTeX is not buildable.")
-      else()
-        # TODO: only the pdf command works!  Could it be an issue with USE_PDFLATEX?
-        #   I think not.  It's prolly because pdflatex directly outputs the pdf and
-        #   the others only output a dvi which can be converted either way.  Otherwise
-        #   I can use ps2pdf... I need to test exactly what is outputted when not 
-        #   pdflatex.
-        #   
-        add_custom_command(
-          OUTPUT ${dvi_output}
-          COMMAND ${MAKE_EXECUTABLE} dvi
-          WORKING_DIRECTORY "${absolute_latex_path}"
-          DEPENDS "doxygen/latex/Makefile"
-          COMMENT "Calling doxygen's generated makefile for dvi (this is error prone!)."
-          VERBATIM 
-        )
-      
-        add_custom_command(
-          OUTPUT ${pdf_output}
-          COMMAND ${MAKE_EXECUTABLE} pdf
-          WORKING_DIRECTORY "${absolute_latex_path}"
-          DEPENDS "${CMAKE_BINARY_DIR}/doxygen/latex/Makefile"
-          COMMENT "Calling doxygen's generated makefile for pdf (this is error prone!)."
-          VERBATIM 
-        )
-        
-        add_custom_command(
-          OUTPUT ${ps_output}
-          COMMAND ${MAKE_EXECUTABLE} ps
-          WORKING_DIRECTORY "${absolute_latex_path}"
-          DEPENDS "doxygen/latex/Makefile"
-          COMMENT "Calling doxygen's generated makefile for ps (this is error prone!)."
-          VERBATIM 
-        )
-  
-        add_custom_target(
-          ${target_name}_ps
-          DEPENDS ${ps_output}
-          COMMENT "Call ps makefile if ps isn't built."
-        )
-        
-        add_custom_target(
-          ${target_name}_dvi
-          DEPENDS ${dvi_output}
-          COMMENT "Call dvi makefile if dvi isn't built."
-        )
-        
-        add_custom_target(
-          ${target_name}_pdf
-          DEPENDS ${pdf_output}
-          COMMENT "Call pdf makefile if pdf isn't built."
-        )
+      set(from_bindir TRUE)
+    endif()
+
+    if (NOT arg_INSTALL_FROM OR from_bindir)
+      if (NOT MAKE_ALL)
+        message(STATUS "add_doxygen(): warning: doxygen is not building with make all, but install from is the built docs.  Build must be done manually *before* install.")
       endif()
     endif()
+
+    if (arg_INSTALL_FROM) 
+      set(inst_from ${arg_INSTALL_FROM})
+    else()
+      set(inst_from ${conf_OUTPUT_DIRECTORY})
+    endif()
+
+    if (arg_INSTALL_TO)
+      set(inst_to "${arg_INSTALL_TO}")
+    else()
+      message(STATUS "add_doxygen(): warning: using a default value for install location.")
+      if (UNIX)
+        set(inst_to "share/doc/${CMAKE_PROJECT_NAME}/")
+      else()
+        # On win, the installer is rooted in its own directory.
+        set(inst_to "doc")
+      endif()
+    endif()
+
+    if (DOXYGEN_CMAKE_VERBOSE)
+      message(STATUS "add_doxygen(): doxygen will install from ${inst_from}.")
+      message(STATUS "add_doxygen(): doxygen will install to ${inst_to}.")
+    endif()
+
+    # Ensure the last dir HAS got a slash on the end, otherwise we end up
+    # copying the entire dir instead of just the contents.
+    set(file "${inst_from}/${conf_HTML_OUTPUT}/")
+    set(inst "${inst_to}")
+
+    if (conf_GENERATE_HTML)
+      install(
+        DIRECTORY   "${file}"
+        DESTINATION "${inst}/${conf_HTML_OUTPUT}"
+        FILES_MATCHING
+        PATTERN "*.png"
+        PATTERN "*.html"
+        PATTERN "*.css"
+        PATTERN "*.gif"
+      )
+    endif()
+
+    if (conf_GENERATE_LATEX)
+      set(file "${inst_from}/${conf_LATEX_OUTPUT}/refman.pdf")
+      set(inst "${inst_to}/${conf_LATEX_OUTPUT}")
+      install(
+        FILES "${file}"
+        DESTINATION "${inst}"
+      )
+    endif()
+
+    # TODO: add manpages.
+
+  elseif (DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "add_doxygen(): not adding install targets.")
   endif()
-  
 endfunction()
 
+# Set up a load of variables for a later call to doxygen_install.
 macro(doxgyen_setup_flags flags_var target wants)
+  message("doxgyen_setup_flags(): this function is deprected")
   message(STATUS "Setting doxygen flags.")
 
   set(DOXYGEN_OUT_DIR "${CMAKE_BINARY_DIR}/${target}")
@@ -568,20 +932,21 @@ macro(doxgyen_setup_flags flags_var target wants)
   endforeach()
 
   if (DOXYGEN_CMAKE_VERBOSE)
-    message("doxgyen_setup_flags() finished, set values:")
-    message("- DOXYGEN_OUT_DIR = ${DOXYGEN_OUT_DIR}")
+    message(STATUS "doxgyen_setup_flags() finished, set values:")
+    message(STATUS "- DOXYGEN_OUT_DIR = ${DOXYGEN_OUT_DIR}")
   
-    message("- DOXYGEN_REL_HTML_DIR = ${DOXYGEN_REL_HTML_DIR}")
-    message("- DOXYGEN_REL_LATEX_DIR = ${DOXYGEN_REL_LATEX_DIR}")
-    message("- DOXYGEN_REL_PDF_FILE = ${DOXYGEN_REL_PDF_FILE}")
+    message(STATUS "- DOXYGEN_REL_HTML_DIR = ${DOXYGEN_REL_HTML_DIR}")
+    message(STATUS "- DOXYGEN_REL_LATEX_DIR = ${DOXYGEN_REL_LATEX_DIR}")
+    message(STATUS "- DOXYGEN_REL_PDF_FILE = ${DOXYGEN_REL_PDF_FILE}")
 
-    message("- DOXYGEN_HTML_DIR = ${DOXYGEN_HTML_DIR}")
-    message("- DOXYGEN_LATEX_DIR = ${DOXYGEN_LATEX_DIR}")
-    message("- DOXYGEN_PDF_FILE = ${DOXYGEN_PDF_FILE}")
+    message(STATUS "- DOXYGEN_HTML_DIR = ${DOXYGEN_HTML_DIR}")
+    message(STATUS "- DOXYGEN_LATEX_DIR = ${DOXYGEN_LATEX_DIR}")
+    message(STATUS "- DOXYGEN_PDF_FILE = ${DOXYGEN_PDF_FILE}")
   endif()
 endmacro()
 
 function(doxygen_install_targets doxygen_target wants install_to install_docs_from)
+  message("doxygen_install_targets(): this function is deprected")
   message(STATUS "Adding doxygen make install targets.")
 
   # One hour of trial and error tells me that yes, you really do need to test it with

@@ -11,6 +11,62 @@
 
 include("${CMAKE_SOURCE_DIR}/build-aux/butil.cmake")
 
+message(STATUS "Setting up unit test functions.")
+
+if (WIN32 AND CMAKE_CROSSCOMPILING AND CMAKE_HOST_UNIX)
+  find_program(WINE_EXE wine)
+  mark_as_advanced(WINE_EXE)
+  if (WINE_EXE) 
+    message(STATUS "Wine will be used for cross-compiled unit tests: ${WINE_EXE}")
+  else()
+    message(STATUS "Wine cannot be found.  Unit tests may fail.")
+  endif()
+
+  set(
+    BTEST_WINE_DLLPATHS "" CACHE STRING
+    "Extra paths (seperate with semic) where dlls for wine are - rpath hack, basically."
+  )
+  mark_as_advanced(BTEST_WINE_DLLPATHS)
+
+  set(btest_envpath_bin "setenvpath")
+  add_executable(${btest_envpath_bin} "${CMAKE_SOURCE_DIR}/build-aux/setenvpath.c")
+
+  set(btest_envpath_exe ${CMAKE_BINARY_DIR}/${btest_envpath_bin}${CMAKE_EXECUTABLE_SUFFIX})
+
+  foreach (dir ${BTEST_WINE_DLLPATHS})
+    if (NOT IS_DIRECTORY ${dir})
+      message(FATAL_ERROR "Directory in BTEST_WINE_DLLPATHS does not exist: ${dir}")
+    endif()
+
+    list(APPEND btest_envpath_args "-p")
+    list(APPEND btest_envpath_args "${dir}")
+  endforeach()
+
+  # Finally set the prefix we will use to run test.
+  # TODO: it would be much better if we could depend on envpath_bin inside of the 
+  #       unit tests but I'm having trouble making that actually work so for now
+  #       we just assume it is ok to build with ALL..
+  if (BTEST_WINE_DLLPATHS) 
+    set(BTEST_EMULATOR_PF    "${WINE_EXE};${btest_envpath_exe};${btest_envpath_args}")
+  else()
+    set(BTEST_EMULATOR_PF    "${WINE_EXE}")
+  endif()
+endif()
+
+set(BTEST_ADD_RUBY_DIR "${CMAKE_BINARY_DIR}/ruby_tests")
+
+# we are not allowed to append to the binary dir aparently.
+set_property(
+  DIRECTORY APPEND
+  PROPERTY "ADDITIONAL_MAKE_CLEAN_FILES"
+  "${BTEST_ADD_RUBY_DIR}"
+)
+
+find_program(RUBY_EXE ruby)
+if (NOT RUBY_EXE)
+  find_program(RUBY_EXE ruby1.8)
+endif()
+
 # Make a test with the target name name_test.  Note that if you are depending 
 # on a top level target, you should use add_dependencies on $name_test instead 
 # of using DEPENDS -- that's just for files.
@@ -38,43 +94,43 @@ function(btest_add)
   list(GET PA_OTHER 0 name)
   list(REMOVE_AT PA_OTHER 0)
 
-  if (NOT SOURCES)
+  if (NOT arg_SOURCES)
     if (NOT PA_OTHER) 
       message(FATAL_ERROR "btest_add(): need at least one source.")
     else()
-      set(SOURCES ${PA_OTHER})
+      set(arg_SOURCES ${PA_OTHER})
     endif()
   endif()
 
-  add_executable(${name} ${SOURCES})
+  add_executable(${name} ${arg_SOURCES})
 
-  if (LIBS)
-    target_link_libraries(${name} ${LIBS})
+  if (arg_LIBS)
+    target_link_libraries(${name} ${arg_LIBS})
   endif()
 
-  if (CPPFLAGS) 
+  if (arg_CPPFLAGS) 
     set_property(
       TARGET ${name} APPEND PROPERTY
-      COMPILE_DEFINITIONS ${CPPFLAGS}
+      COMPILE_DEFINITIONS ${arg_CPPFLAGS}
     )
   endif()
 
   add_dependencies(${name} "setenvpath")
 
-  if (DEPENDS)
+  if (arg_DEPENDS)
     # TODO: don't know if this'll  work.
-    add_dependencies(${name} ${DEPENDS})
+    add_dependencies(${name} ${arg_DEPENDS})
   endif()
 
-  if (LDFLAGS)
+  if (arg_LDFLAGS)
     set_property(
-      TARGET ${name} APPEND PROPERTY LINK_FLAGS ${LDFLAGS}
+      TARGET ${name} APPEND PROPERTY LINK_FLAGS ${arg_LDFLAGS}
     )
   endif()
 
-  if (CFLAGS)
+  if (arg_CFLAGS)
     set_property(
-      TARGET ${name} APPEND PROPERTY COMPILE_FLAGS ${CFLAGS}
+      TARGET ${name} APPEND PROPERTY COMPILE_FLAGS ${arg_CFLAGS}
     )
   endif()
 
@@ -82,10 +138,10 @@ function(btest_add)
   # We rely that empty variables decay to nothing and that lists are expanded.
   add_test(
     ${test_name}
-    ${BTEST_EMULATOR_PF} ${name}${CMAKE_EXECUTABLE_SUFFIX} ${ARGS}
+    ${BTEST_EMULATOR_PF} ${name}${CMAKE_EXECUTABLE_SUFFIX} ${arg_ARGS}
   )
 
-  if (XFAIL)
+  if (arg_XFAIL)
     set_tests_properties(
       ${test_name}
       PROPERTIES WILL_FAIL YES
@@ -119,37 +175,52 @@ function(btest_add_ruby name ruby_input)
   list(REMOVE_AT args 0 1)
   butil_parse_args("GENERATOR_ARGS;SCRIPT_DEPENDS" "" "ARGS;CPPFLAGS;CFLAGS;LDFLAGS;LIBS;DEPENDS;SOURCES;XFAIL" "${args}")
 
-  if (OTHER) 
+  if (PA_OTHER) 
     message(FATAL_ERROR "btest_add_ruby(): too many arguments")
   endif()
 
-  set(dir "${CMAKE_BINARY_DIR}/ruby_tests")
-  # Note: expand for other languages maybe?
-  set(script_out "${dir}/${name}.cpp")
-
-  # TODO: mkdir_p of ${dir} using cmake as a command somehow.  Also need to clean it, again
-  # somehow.   This way it can be a rule which is rebuilt with make all instead of just breaking 
-  # everything if it's not there.
-  if (NOT IS_DIRECTORY "${dir}")
-    file(MAKE_DIRECTORY "${dir}")
-
-    set_property(
-      DIRECTORY APPEND
-      PROPERTY "ADDITIONAL_MAKE_CLEAN_FILES"
-      "${dir}"
-    )
+  if (NOT BTEST_ADD_RUBY_DIR)
+    message(FATAL_ERROR "btest_add_ruby(): BTEST_ADD_RUBY_DIR is not defined.")
   endif()
+
+  # Note: expand for other languages maybe?
+  set(script_out "${BTEST_ADD_RUBY_DIR}/${name}.cpp")
+
+  # We have to depend on this because the directory changes every time we run
+  # the generator which means all the scripts get regenerated twice.  It simply
+  # says "we created the directory."
+  set(ruby_dir_depend "${BTEST_ADD_RUBY_DIR}/btest_dir_stamp")
+  # I do not know why, but it seems that this target must be added in the same function
+  # as the stuff that depends on it.  Also, it doesn't seem to matter that we just created
+  # a duplicate output here.  *Shrug*.
+  add_custom_command(
+    OUTPUT "${ruby_dir_depend}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${BTEST_ADD_RUBY_DIR}"
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${ruby_dir_depend}"
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    COMMENT "Creating dir for ruby generated tests."
+    VERBATIM
+  ) 
+
+  set_property(
+    DIRECTORY APPEND
+    PROPERTY "ADDITIONAL_MAKE_CLEAN_FILES"
+    "${script_out}"
+  )
 
   add_custom_command(
     OUTPUT "${script_out}"
-    COMMAND "${RUBY_EXE}" "-w" "${ruby_input}" ${GENERATOR_ARGS} > ${script_out}
+    COMMAND "${RUBY_EXE}" "-w" "${ruby_input}" ${arg_GENERATOR_ARGS} > ${script_out}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${script}" ${SCRIPT_DEPENDS}
-    COMMENT "Ruby generating ${name} with args ${GENERATOR_ARGS}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${ruby_input}" 
+            ${ruby_dir_depend}
+            ${arg_SCRIPT_DEPENDS} 
+    COMMENT "Ruby generating ${name} with args ${arg_GENERATOR_ARGS}"
     VERBATIM
   )
 
-  btest_add("${name}" "${script_out}" ${PA_OTHER} ${PA_IGNORED})
+  btest_add("${name}" SOURCES "${script_out}" ${PA_IGNORED})
 endfunction()
 
 # Compile a test which is expected to fail to compile.
@@ -159,49 +230,23 @@ endfunction()
 #   source
 #   [CFLAGS flag...]
 # )
-function(btest_add_compile_fail)
+function(btest_add_compile_fail name source)
+  butil_parse_args("CFLAGS" "" "" "${ARGV}")
+
+  # Ideally I want to add this to add_test directly... then we can run it 
+  # under ctest...
+  #
+  # try_compile(
+  #   result bindir srcfile
+  #   [CMAKE_FLAGS <Flags>]
+  #   [COMPILE_DEFINITIONS <flags> ...]
+  #   [OUTPUT_VARIABLE var]
+  #   [COPY_FILE <filename>]
+  # )
+
+  # if (result)
+  #  error.
+  # endif()
+
 # TODO: this.
 endfunction()
-
-if (WIN32 AND CMAKE_CROSSCOMPILING AND CMAKE_HOST_UNIX)
-  find_program(WINE_EXE wine)
-  mark_as_advanced(WINE_EXE)
-  if (WINE_EXE) 
-    message(STATUS "Wine will be used for cross-compiled unit tests: ${WINE_EXE}")
-  else()
-    message(STATUS "Wine cannot be found.  Unit tests may fail.")
-  endif()
-
-  set(
-    BTEST_WINE_DLLPATHS "" CACHE STRING
-    "Extra paths (seperate with semic) where dlls for wine are - rpath hack, basically."
-  )
-  mark_as_advanced(BTEST_WINE_DLLPATHS)
-
-  set(btest_envpath_bin "setenvpath")
-  add_executable(${btest_envpath_bin} "${CMAKE_SOURCE_DIR}/build-aux/setenvpath.c")
-
-  set(btest_envpath_exe ${CMAKE_BINARY_DIR}/${btest_envpath_bin}${CMAKE_EXECUTABLE_SUFFIX})
-
-  foreach (dir ${BTEST_WINE_DLLPATHS})
-    if (NOT IS_DIRECTORY ${dir})
-      message(FATAL_ERROR "Directory in BTEST_WINE_DLLPATHS does not exist: ${dir}")
-    endif()
-
-    list(APPEND btest_envpath_args "-p")
-    list(APPEND btest_envpath_args "${dir}")
-  endforeach()
-
-  # Finally set the prefix we will use to run test, and the extra 
-  # dependancy for every test.
-  if (BTEST_WINE_DLLPATHS) 
-    set(BTEST_EMULATOR_PF    "${WINE_EXE};${btest_envpath_exe};${btest_envpath_args}")
-  else()
-    set(BTEST_EMULATOR_PF    "${WINE_EXE}")
-  endif()
-endif()
-
-find_program(RUBY_EXE ruby)
-if (NOT RUBY_EXE)
-  find_program(RUBY_EXE ruby1.8)
-endif()
