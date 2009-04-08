@@ -77,6 +77,9 @@ class settings {
     int duration_ms() const { return duration_; }
     bool loop() const { return flag(fl_loop); }
 
+    //! \brief Pause between notes.
+    int pause_ms() const { return pause_time_; }
+
     int sample_rate() const { return sample_rate_; }
     int channels() const { return channels_; }
     double amplitude() const { return amplitude_; }

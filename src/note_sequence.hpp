@@ -20,6 +20,9 @@ class note_sequence {
       }
 
     }
+
+    bool done() { return false; }
+    double next_frequency() { return 440.0; }
 };
 
 

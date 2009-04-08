@@ -31,6 +31,13 @@
 //   For now I will do it the global way, and try to make a monitored T which
 //   will fix the problems.
 
+#include <string>
+
+class sample_dumper {
+  public:
+    sample_dumper(const std::string &filename, std::size_t buffer_size) {}
+    void dump(void *buf) {}
+};
 
 
 // another messy global... perhaps those methods should be part of the
@@ -39,16 +46,45 @@ queue_pusher<sync_queue_type> *qp = NULL;
 
 void reader_callback(void *, uint8_t *stream, int length) {
   assert(qp);
+  // use quitting and quit_cond somehow :)
+  //
+  //
   // oops no good - we don't always pop something... maybe we
   // just keep going until null?  Thne a lot of problems
   // evaporate!
   void *buf = qp->pop();
   if (! buf) {
+    // this is a two-flag version of the sync flag thing.  The only thing is we don't
+    // check active() first.  That's ok in this context, and possibly safer - we are
+    // using two flags, effectively.
+    terminated = true;
     return;
   }
 
   std::memcpy(stream, buf, length);
 }
+
+#include <fcntl.h>
+
+//! \brief Non-blocking reader of stdin.
+//TODO: make this portable
+class key_reader {
+  public:
+    key_reader() {
+      int flags = fcntl(0, F_GETFL, 0);
+      flags |= O_NONBLOCK;
+      fcntl(0, F_SETFL, flags);
+    }
+
+    ~key_reader() {
+      int flags = fcntl(0, F_GETFL, 0);
+      flags &= ~O_NONBLOCK;
+      fcntl(0, F_SETFL, flags);
+    }
+
+    // TODO: fix this
+    bool pressed() { return false; }
+};
 
 int main(int argc, char **argv) {
   try {
@@ -80,30 +116,32 @@ int main(int argc, char **argv) {
 
     // we need to take a lot of stuff into account when calculating the right time
     // period of buffer.
-    sample_generator buffer(calc, set.duration_ms(), dev.obtained()); // , dev.obtained().buffer_samples(), dev.obtained().buffer_size());
-    if (set.dump_to_file()) {
-      buffer.set_file(set.dump_file());
-    }
+    sample_generator buffer(calc, dev.obtained()); // , dev.obtained().buffer_samples(), dev.obtained().buffer_size());
 
-    int16_t samples = NULL;
+    sample_dumper dump_file(set.dump_file(), dev.obtained().buffer_size());
 
-    // TODO: could be nicer as a global which carries all the sync data.
+    key_reader keys;
+
+    void *samples = NULL;
+    // TODO:
+    //   could be nicer as a global which carries all the sync data - see sync_data.hpp
+    //   there are other ways it could be done..
     queue_pusher<sync_queue_type> pusher(queue);
     qp = &pusher;
     do {
-      note_seq::iterator i = note_seq.begin() ...
-      while (i != note_seq.end()) {
-        freq = note_seq.next_frequency (or *i if I get that wokring)
+      // note_seq::iterator i = note_seq.begin() ...
+      while (! note_seq.done()) {
+        double freq = note_seq.next_frequency(); // (or *i if I get that wokring)
         // can use iterator?
         calc.reset_wave(freq);
         buffer.reset(set.duration_ms());
 
-        samples = NULL;
-        while ((samples = buffer.get_samples(calc)) != NULL) {
+        while ((samples = buffer.get_samples()) != NULL) {
           pusher.push(samples);
+          dump_file.dump(samples);
 
-          // TODO: how keypress?
-          if (keypress()) { // nonblocking i/o somehow?
+          // TODO: how keypress formed?
+          if (keys.pressed()) { // nonblocking i/o somehow?
             // flush next time we have a full buffer.
             pusher.flush_next_push();
             break;
@@ -115,7 +153,8 @@ int main(int argc, char **argv) {
 
           while ((samples = buffer.get_silence()) != NULL) {
             pusher.push(samples);
-            if (keypress()) {
+            dump_file.dump(samples);
+            if (keys.pressed()) {
               break;
             }
           }
@@ -126,24 +165,24 @@ int main(int argc, char **argv) {
     // final period
     samples = buffer.get_silence();
     if (samples) {
-      pusher.push(buffer.get_silence())
+      pusher.push(samples);
     }
 
     // TODO:
     //   Generalise this pattern as monitored_flag (monitored_flag.hpp).  (First I need
     //   the quit strategy in the SDL thread).  I will use the standard way first.
-    boost::unique_lock<boost::scoped_lock> lk;
-    quit = true;
+    boost::unique_lock<boost::mutex> lk(quit_mutex);
+    quitting = true;
     quit_cond.notify_one();
 
     // while the sdl thread hasnt flipped it back again
-    while (quit == true) {
+    while (terminated == false) {
       quit_cond.wait(lk);
     }
     lk.unlock();
 
     // Avoid needlessly calling the output while we're shutting down
-    dev.pause()
+    dev.pause();
 
     return EXIT_SUCCESS;
   }

@@ -23,6 +23,9 @@ typedef traits::monitor_tuple_type sync_queue_type;
 sync_queue_type queue;
 // TODO: do something about  this global.
 bool quitting = false;
+bool terminated = false;
+boost::mutex quit_mutex;
+boost::condition_variable quit_cond;
 
 // TODO:
 //   maybe I could put the whole lot in the a struct and then use boost
@@ -55,7 +58,7 @@ class queue_pusher {
     typedef typename mutex_type::scoped_lock   lock_type;
     typedef typename TupleType::condition_type condition_type;
 
-    typedef para::monitor<mutex_type, lock_type, condition_type> monitor_type;
+    typedef para::monitor<lock_type, condition_type> monitor_type;
 
   public:
     queue_pusher(TupleType &sync) : flush_(false), sync_(sync) {}
@@ -64,23 +67,25 @@ class queue_pusher {
 
     //! \brief Blocking operation to push the buffer.
     void push(void *buffer) {
-      //TODO:
-      //  actually, it would be less skippy if we iterate the queue and pop
-      //  from the *back*, locking and unlocking each time.
 
       monitor_type monitor(sync_, push_continue_predicate);
       // would be nicer if I could get this by monitor::data().
       typename TupleType::value_type &q = sync_.data();
       if (flush_) {
-        q.clear();
+        //TODO:
+        //  actually, it would be less skippy if we iterate the queue and pop
+        //  from the *back*, locking and unlocking each time.
+        while (! q.empty()) q.pop();
+        flush_ = false;
       }
       q.push(buffer);
-      flush_ = false;
     }
 
     void *pop() {
-      monitor_type monitor m(sync_, pop_continue_predicate);
-      return sync_.data().pop();
+      monitor_type m(sync_, pop_continue_predicate);
+      void *r = sync_.data().front();
+      sync_.data().pop();
+      return r;
     }
 
   private:
