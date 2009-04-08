@@ -40,6 +40,13 @@ class invalid_setting : public std::runtime_error {
     invalid_setting(const std::string &m) : runtime_error(m) {}
 };
 
+// TODO:
+//   a handy thing would be an --offset parameter which gives a frequency
+//   skew for when the tuning is slightly off.  Problem is it's logarithmic
+//   so I don't know it... I guess you need to give concert pitch version
+//   of A since we work out all our notes from that?
+
+//! \brief Container for cli-data.
 class settings {
   public:
     typedef std::vector<std::string> notes_list_type;

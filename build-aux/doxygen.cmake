@@ -317,6 +317,10 @@ macro(add_doxygen_directives)
     "${ARGV}"
   )
 
+  if (arg_INSTALL AND arg_NO_INSTALL)
+    message(FATAL_ERROR "add_doxygen_directives(): INSTALL TRUE and NO_INSTALL may not be set together.")
+  endif()
+
   if (NOT arg_ARGS_VAR)
     set(arg_ARGS_VAR ${ARGV0})
   endif()
