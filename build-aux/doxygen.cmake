@@ -83,11 +83,14 @@
 # to override it if it cannot be build for some reason (this is a good idea).  
 # Currently outputs may be: html, latex (gives you pdf), and man.  It does
 # not accept things which are not directly implemented by add_doxygen, since 
-# most GENERATE_x require some external programs.
+# most GENERATE_x require some external programs.  
 #
 # Currently it may be html, latex, or man.  Each of these outputs will be
 # forced to "yes" or "no" depending on OUTPUT; again they may be overridden
 # by OVERRIDES or by a missing dependency.
+#
+# The special keyword "none" can be used to tell add_doxygen to generate no
+# targets and (crucially) to force then GENERATE_x args to NO.
 #
 # NOTE: currently man is not installable because doxygen makes a huge messy
 # directory full of pages and they need some love.
@@ -152,6 +155,8 @@
 #   [OVERRIDES_VAR overrides_varname]
 #   [NO_USER_DOXYFILE]
 #   [NO_INSTALL | INSTALL <true|false>]
+#   [PDF_DEFAULT <true|false>]
+#   [HTML_DEFAULT <true|false>]
 #
 #   [INPUTS dir...]
 #   [VERSION project_version]
@@ -179,6 +184,9 @@
 #   installing if all docs, instead of just pdf, html etc. for this one target.
 # INSTALL - an alias for NO_INSTALL so you can use some other variable to 
 #   determine the value directly.
+#
+# PDF_DEFAULT - default value for WANT_PDF option
+# HTML_DEFAULT - and for html.
 #
 # VERSION - when not present it uses ${PROJECT_VERSION}.
 # PROJECT - when not present it uses ${PROJECT_NAME}
@@ -311,7 +319,7 @@ macro(add_doxygen_directives)
   # TODO: 
   #   add the ability to specify defaults for the option()'s.
   butil_parse_args(
-    "ARGS_VAR;TARGET;OVERRIDES_VAR;VERSION;PROJECT;DOCS_MIRROR;DEFAULT_DOXYFILE;EXAMPLES;INSTALL;INPUTS" 
+    "ARGS_VAR;TARGET;OVERRIDES_VAR;VERSION;PROJECT;DOCS_MIRROR;DEFAULT_DOXYFILE;EXAMPLES;INSTALL;INPUTS;PDF_DEFAULT;HTML_DEFAULT" 
     "NO_USER_DOXYFILE;SYSTEM;NO_INSTALL" 
     "" 
     "${ARGV}"
@@ -375,8 +383,21 @@ macro(add_doxygen_directives)
   set(doxyfile_cachevar "${target_upcase}_DOXYFILE_TEMPLATE")
 
   option(${rebuild_cachevar} "Regenerate doxygen and install that instead of the distributed docs." NO)
-  option(${pdf_cachevar} "Install PDF from doxygen (needs pdfLaTeX)" YES)
-  option(${html_cachevar} "Install HTML made by doxygen" YES)
+
+  # Be specific.
+  if (arg_PDF_DEFAULT)
+    set(val "YES")
+  else()
+    set(val "NO")
+  endif()
+  option(${pdf_cachevar} "Install PDF from doxygen (needs pdfLaTeX)" ${val})
+
+  if (arg_HTML_DEFAULT)
+    set(val "YES")
+  else()
+    set(val "NO")
+  endif()
+  option(${html_cachevar} "Install HTML made by doxygen" ${val})
 
   mark_as_advanced(
     ${rebuild_cachevar}
@@ -384,18 +405,24 @@ macro(add_doxygen_directives)
     ${html_cachevar}
   )
 
-  if (${pdf_cachevar} OR ${html_cachevar})
-    list(APPEND ${arg_ARGS_VAR} OUTPUTS)
-  endif()
+  set(add_empty_string TRUE)
+  list(APPEND ${arg_ARGS_VAR} OUTPUTS)
 
   if (${pdf_cachevar})
     message(STATUS "${arg_TARGET}: LaTeX is on.")
+    set(add_empty_string FALSE)
     list(APPEND ${arg_ARGS_VAR} "latex")
   endif()
 
   if (${html_cachevar})
     message(STATUS "${arg_TARGET}: HTML is on.")
+    set(add_empty_string FALSE)
     list(APPEND ${arg_ARGS_VAR} "html")
+  endif()
+  
+  # Bit of a hack.  We need outputs set to *something* or it won't work :)
+  if (add_empty_string)
+    list(APPEND ${arg_ARGS_VAR} "none")
   endif()
   
   if (${rebuild_cachevar})
@@ -555,18 +582,30 @@ function(add_doxygen target_name template_file directives_list)
   # User overides which we are allowed to override right back if we want :).
   # For compatibility, we allow the doxyfile to specify this.
 
-  # TODO: use pdf, ps instead of LaTeX..
   if (arg_OUTPUTS)
     # TODO: validate these names.
+    set(is_none FALSE)
     foreach (o ${arg_OUTPUTS})
+      if (o STREQUAL "none")
+        if(is_none)
+          message(FATAL_ERROR "add_doxygen(): OUTPUT contains `none' as well as other values.")
+        endif()
+        set(is_none TRUE)
+      endif()
       string(TOUPPER ${o} o)
       set(out_${o} "YES")
     endforeach()
 
+    if (DOXYGEN_CMAKE_VERBOSE AND is_none)
+      message("add_doxygen(): outputs are forced to none.")
+    endif()
+
     set(possible_outs "HTML" "MAN" "LATEX")
     foreach (o ${possible_outs})
       list(APPEND extra_force GENERATE_${o})
-      if (out_${o}) 
+      if (is_none)
+        add_doxygen_override_var(GENERATE_${o} "NO")
+      elseif (out_${o}) 
         add_doxygen_override_var(GENERATE_${o} "YES")
       else()
         add_doxygen_override_var(GENERATE_${o} "NO")
@@ -909,8 +948,8 @@ endfunction()
 
 # Set up a load of variables for a later call to doxygen_install.
 macro(doxgyen_setup_flags flags_var target wants)
-  message("doxgyen_setup_flags(): this function is deprected")
   message(STATUS "Setting doxygen flags.")
+  message("doxgyen_setup_flags(): this function is deprected")
 
   set(DOXYGEN_OUT_DIR "${CMAKE_BINARY_DIR}/${target}")
   
