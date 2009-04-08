@@ -308,6 +308,8 @@ endmacro()
 
 # Sets variables for a subsequent call to add_doxygen.
 macro(add_doxygen_directives)
+  # TODO: 
+  #   add the ability to specify defaults for the option()'s.
   butil_parse_args(
     "ARGS_VAR;TARGET;OVERRIDES_VAR;VERSION;PROJECT;DOCS_MIRROR;DEFAULT_DOXYFILE;EXAMPLES;INSTALL;INPUTS" 
     "NO_USER_DOXYFILE;SYSTEM;NO_INSTALL" 
@@ -356,22 +358,47 @@ macro(add_doxygen_directives)
   endif()
 
   if (arg_NO_INSTALL)
+    message(STATUS "${arg_TARGET}: install targets will be disabled.")
     list(APPEND ${arg_ARGS_VAR} NO_INSTALL)
-  elseif(DEFINED arg_INSTALL AND NOT arg_INSTALL)
-    list(APPEND ${arg_ARGS_VAR} NO_INSTALL)
+  else()
+    message(STATUS "${arg_TARGET}: install targets are enabled.")
   endif()
 
   string(TOUPPER "${arg_TARGET}" target_upcase)
-  list(APPEND ${arg_ARGS_VAR} OUTPUTS)
+  set(pdf_cachevar WANT_${target_upcase}_PDF)
+  set(html_cachevar WANT_${target_upcase}_PDF)
+  set(rebuild_cachevar "WANT_${target_upcase}_REBUILD")
+  set(doxyfile_cachevar "${target_upcase}_DOXYFILE_TEMPLATE")
 
-  option(WANT_${target_upcase}_PDF "Install PDF from doxygen (needs pdfLaTeX)" YES)
-  if (WANT_${target_upcase}_PDF)
+  option(${rebuild_cachevar} "Regenerate doxygen and install that instead of the distributed docs." NO)
+  option(${pdf_cachevar} "Install PDF from doxygen (needs pdfLaTeX)" YES)
+  option(${html_cachevar} "Install HTML made by doxygen" YES)
+
+  mark_as_advanced(
+    ${rebuild_cachevar}
+    ${pdf_cachevar}
+    ${html_cachevar}
+  )
+
+  if (${pdf_cachevar} OR ${html_cachevar})
+    list(APPEND ${arg_ARGS_VAR} OUTPUTS)
+  endif()
+
+  if (${pdf_cachevar})
+    message(STATUS "${arg_TARGET}: LaTeX is on.")
     list(APPEND ${arg_ARGS_VAR} "latex")
   endif()
 
-  option(WANT_${target_upcase}_HTML "Install HTML made by doxygen" YES)
-  if (WANT_${target_upcase}_HTML)
+  if (${html_cachevar})
+    message(STATUS "${arg_TARGET}: HTML is on.")
     list(APPEND ${arg_ARGS_VAR} "html")
+  endif()
+  
+  if (${rebuild_cachevar})
+    message(STATUS "${arg_TARGET}: dox will rebuild with make all.")
+    list(APPEND ${arg_ARGS_VAR} MAKE_ALL)
+  else()
+    message(STATUS "${arg_TARGET}: dox will not rebuild with make all.")
   endif()
 
   if (arg_OVERRIDES_VAR)
@@ -386,28 +413,21 @@ macro(add_doxygen_directives)
     set(default_dox "${arg_DEFAULT_DOXYFILE}")
   endif()
 
-  option(WANT_${target_upcase}_REBUILD "Regenerate doxygen and install that instead of the distributed docs." NO)
-  if (WANT_${TARGET}_REBUILD)
-    list(APPEND ${arg_ARGS_VAR} MAKE_ALL)
-  elseif (arg_DOCS_MIRROR)
+  if (arg_DOCS_MIRROR)
+    message(STATUS "${arg_TARGET}: install will come from ${arg_DOCS_MIRROR} (if enabled).")
     list(APPEND ${arg_ARGS_VAR} INSTALL_FROM "${arg_DOCS_MIRROR}")
   endif()
-
-  mark_as_advanced(
-    WANT_${target_upcase}_REBUILD 
-    WANT_${target_upcase}_HTML 
-    WANT_${target_upcase}_PDF
-  )
 
   if (arg_NO_USER_DOXYFILE)
     list(APPEND ${arg_ARGS_VAR} DOXYFILE "${default_dox}")
   else()
-    set(dox_cachevar "${target_upcase}_DOXYFILE_TEMPLATE")
-    set("${dox_cachevar}" "${default_dox}" CACHE PATH
+    set("${doxyfile_cachevar}" "${default_dox}" CACHE PATH
       "Base doxyfile.  Mostly useful for developers.  Certain vars will be overwritten by cmake (in/output paths mostly).")
 
-    mark_as_advanced(${dox_cachevar})
-    list(APPEND ${arg_ARGS_VAR} DOXYFILE "${${dox_cachevar}}")
+    message(STATUS "${arg_TARGET}: doxyfile selected: '${${doxyfile_cachevar}}'")
+
+    mark_as_advanced(${doxyfile_cachevar})
+    list(APPEND ${arg_ARGS_VAR} DOXYFILE "${${doxyfile_cachevar}}")
   endif()
 
   # message("${${arg_ARGS_VAR}}")

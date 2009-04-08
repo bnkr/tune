@@ -140,52 +140,10 @@ install(
 ## CPack Stuff ##
 #################
 
-message(STATUS "Doing CPack stuff.")
-
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Stuff.")
-set(CPACK_PACKAGE_VENDOR "bunker")
-set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/build-aux/install-readme.txt")
-
-set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_PATCH})
-
-set(CPACK_SOURCE_TGZ "ON")
-set(CPACK_SOURCE_TBZ2 "OFF")
-set(CPACK_SOURCE_TZ "OFF")
-
-set(CPACK_BINARY_STGZ "OFF")
-set(CPACK_BINARY_TBZ2 "OFF")
-set(CPACK_BINARY_TGZ "OFF")
-set(CPACK_BINARY_TZ "OFF")
-
-# Yes, you really need all that escape crap.
-set(CPACK_SOURCE_IGNORE_FILES "/\\\\..*/;~$;.*\\\\.swp$;/${CMAKE_BINARY_DIR}/;Makefile")
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}")
-
-# name, title, ...
-# set(CPACK_PACKAGE_EXECUTABLES "MyExecutable" "My Executable")
-
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "${PROJECT_NAME}-${PROJECT_VERSION}")
-if(WIN32)
-  # There is a bug in NSI that does not handle full unix paths properly. Make
-  # sure there is at least one set of four (4) backlasshes.
-  # TODO: all of this, but it requires cross-compile anyway
-  # set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/build-aux\\\\InstallIcon.bmp")
-  # set(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\MyExecutable.exe")
-  set(CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY}")
-  set(CPACK_NSIS_HELP_LINK "http:\\\\\\\\www.bunkerprivate.com/")
-  set(CPACK_NSIS_URL_INFO_ABOUT "http:\\\\\\\\www.bunkerprivate.com/")
-  set(CPACK_NSIS_CONTACT "bunker@bunkerprivate.com")
-  set(CPACK_NSIS_MODIFY_PATH ON)
-else()
-  # set(CPACK_STRIP_FILES "bin/MyExecutable")
-  
-  set(CPACK_SOURCE_STRIP_FILES "")
-endif()
-
-
-include(CPack)
-
+butil_cpack_setup(
+  DESCRIPTION "Stuff."
+  VENDOR      "bunker"
+  EMAIL       "bunker@bunkerprivate.com"
+  URL         "http://www.bunkerprivate.com/"
+  BINARIES    "bin/tune"
+)
