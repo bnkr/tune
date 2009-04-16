@@ -43,13 +43,16 @@ class key_reader_win32 : private detail::key_reader_interface {
     }
 
     void reader() {
-      char c;
-      std::cin >> c;
-      {
-        boost::mutex::scoped_lock lk(mut_);
-        trc("notify keypress");
-        pressed_ = true;
+      while (1) {
+        char c;
+        std::cin.read(&c, 1);
+        {
+          boost::mutex::scoped_lock lk(mut_);
+          trc("notify keypress");
+          pressed_ = true;
+        }
       }
+      trc("exitting thread wtf");
     }
 
     boost::mutex mut_;
