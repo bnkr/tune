@@ -105,7 +105,7 @@ class sample_generator {
       // use reset_bytes()
 
       total_samples_ = nearbyint((time_ms * 44100) / 1000);
-      trc("total_samples: " << total_samples_);
+      // trc("total_samples: " << total_samples_);
 
       wassert_eq((total_samples_ * 1000) / 44100, time_ms);
 
@@ -135,8 +135,6 @@ class sample_generator {
 
     //! \brief Return silence samples until the time is fullfiled.
     void *get_silence() {
-      trc("set remains of buffer");
-
       // TODO: use the sdl audio silence value (not that it matters since we're doing it with bytes)
       const int16_t silence_value = 0;
 
@@ -146,10 +144,10 @@ class sample_generator {
       const uint32_t silence_samples = std::min(available, total_samples_);
       const std::size_t silence_bytes = silence_samples * sizeof(int16_t);
 
-      trc("left over bytes in the buffer: " << available);
-      trc("total samples to fill: " << total_samples_);
-      trc("samples to write: " << silence_samples);
-      trc("bytes to write: " << silence_bytes);
+      // trc("left over bytes in the buffer: " << available);
+      // trc("total samples to fill: " << total_samples_);
+      // trc("samples to write: " << silence_samples);
+      // trc("bytes to write: " << silence_bytes);
 
       assert(total_samples_ >= silence_samples);
 

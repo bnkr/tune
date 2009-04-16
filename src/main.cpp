@@ -113,13 +113,13 @@ void reader_callback(void *, uint8_t *stream, int length) {
 class key_reader {
   public:
     key_reader() {
-      int flags = fcntl(fileno(stdin), F_GETFL, fileno(stdin));
+      int flags = fcntl(fileno(stdin), F_GETFL, 0);
       flags |= O_NONBLOCK;
       fcntl(fileno(stdin), F_SETFL, flags);
     }
 
     ~key_reader() {
-      int flags = fcntl(fileno(stdin), F_GETFL, fileno(stdin));
+      int flags = fcntl(fileno(stdin), F_GETFL, 0);
       flags &= ~O_NONBLOCK;
       fcntl(fileno(stdin), F_SETFL, flags);
     }
@@ -130,7 +130,7 @@ class key_reader {
       ssize_t v = read(fileno(stdin), buf, 1);
       if (v == -1) {
         if (errno == EAGAIN) {
-          trc("key.pressed(): op would block.");
+          // trc("key.pressed(): op would block.");
           return false;
         }
         else {
@@ -140,11 +140,11 @@ class key_reader {
         }
       }
       else {
-        // purge the stream.
+        // purge the stream until wouldblock or it's empty
         do {
           v = read(fileno(stdin), buf, buf_sz);
         }
-        while (v);
+        while (v > 0);
         trc("key.pressed(): there was stuff in the buffer - a key was pressed.")
         return true;
       }
