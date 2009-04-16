@@ -4,7 +4,7 @@
 */
 
 #ifndef KEY_READER_HEADER
-#  error Don not include this file directly.  Use key_reader.hpp instead.
+#  error Do not include this file directly.  Use key_reader.hpp instead.
 #endif
 
 #include <boost/thread.hpp>
