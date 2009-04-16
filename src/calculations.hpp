@@ -97,9 +97,10 @@ class sample_generator {
     }
     ~sample_generator() { std::free(buffer_); }
 
+
     //! \brief Change the remaining time to play the sine wave.
     void reset_time(int64_t time_ms) {
-      trc("reset buffer to " << time_ms << " ms");
+      // trc("reset buffer to " << time_ms << " ms");
       assert(time_ms > 0);
       // this could be optimised - we are recalculating the buffer size every time here.  Better to just
       // use reset_bytes()
@@ -107,9 +108,14 @@ class sample_generator {
       total_samples_ = nearbyint((time_ms * 44100) / 1000);
       // trc("total_samples: " << total_samples_);
 
+      // TODO: due to rounding errors (?) this equality doesn't always hold.
       wassert_eq((total_samples_ * 1000) / 44100, time_ms);
 
     }
+
+    // TODO:
+    //   these get_ functions should take a functor which does the pushing, instead of
+    //   us pulling from here and then pushing back again.
 
     //! \brief Return output samples until the time is fullfiled.
     void *get_samples() {

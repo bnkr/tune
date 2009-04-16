@@ -5,8 +5,6 @@
 #ifndef SETTINGS_HPP_g0vr9k40
 #define SETTINGS_HPP_g0vr9k40
 
-#include "notes.hpp"
-
 #include <vector>
 #include <string>
 #include <bitset>

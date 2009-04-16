@@ -45,9 +45,9 @@ void settings::parse_args(int argc, char **argv) {
     ("verbose,v", "Be verbose.")
     ("loop,l", "Loop playing.")
     ("time,t", po::value<int>(&duration_),
-     "Time for each note in miliseconds.  Defaults: " DEFAULT_NOTE_DURATION_STR)
+     "Time for each note in milliseconds.  Defaults: " DEFAULT_NOTE_DURATION_STR)
     ("pause", po::value<int>(&pause_time_),
-     "Milisecond pause time between notes.  Default: " DEFAULT_PAUSE_TIME_STR)
+     "Millisecond pause time between notes.  Default: " DEFAULT_PAUSE_TIME_STR)
     ("dump,D", po::value<std::string>(&dump_file_),
      "Dump raw samples to a file.")
     ("start,s", po::value<std::string>(&start_note_),
@@ -65,7 +65,7 @@ void settings::parse_args(int argc, char **argv) {
     ("rate", po::value<int>(&sample_rate_),
      "Sample rate.  Default: " DEFAULT_SAMPLE_RATE_STR)
     ("channels", po::value<int>(&channels_),
-     "Channels in the sample (1, for mono, 2 for stero etc).  Default: " DEFAULT_CHANNELS_STR)
+     "Channels in the sample (1, for mono, 2 for stereo etc).  Default: " DEFAULT_CHANNELS_STR)
     ;
 
   po::variables_map vm;

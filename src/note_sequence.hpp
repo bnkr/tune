@@ -137,7 +137,8 @@ namespace detail {
 
 //! \brief Sequence of note frequencies based on settings note_list() or start_note().
 //! This also does a lot of validation of settings which is left out of the settings
-//! class because it's techincal stuff to do with calculating the frequencies.
+//! class because it's techincal stuff to do with calculating the frequencies.  This
+//! class controls a lot of the semantics of the program.
 // TODO:
 //   would it be faster to do a comparison each time frequencey is called instead of
 //   the virtaul function call?  Even using a switch might be nicer due to inlining...
