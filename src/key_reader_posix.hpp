@@ -1,8 +1,16 @@
+/*!
+\file
+\brief Non-Portable POSIX non-blocking keypress detector.
+*/
+#ifndef KEY_READER_HEADER
+#  error Don't include this file directly.  Use key_reader.hpp instead.
+#endif
+
 #include <fcntl.h>
 #include <cerrno>
 
 //! \brief Non-blocking reader of stdin.
-class key_reader_posix : private key_reader_interface {
+class key_reader_posix : private detail::key_reader_interface {
   public:
     key_reader_posix() {
       int flags = fcntl(fileno(stdin), F_GETFL, 0);

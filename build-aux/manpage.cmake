@@ -30,6 +30,7 @@ mark_as_advanced(GZIP_EXE)
 #   or however that works.
 set(MANPAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/man-gz")
 if (NOT IS_DIRECTORY "${MANPAGE_OUTPUT_DIR}")
+  # TODO: do this as the ruby test generator doex it.
   file(MAKE_DIRECTORY ${MANPAGE_OUTPUT_DIR})
 
   set_property(

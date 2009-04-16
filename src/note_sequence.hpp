@@ -113,21 +113,29 @@ namespace detail {
 
       // TODO: no need for this to be virtual - just assign a bool in sequence_engine.
       bool done() {
-        // Bit of a hack lets us have --start == --end since offset_ will get
-        // changed anyway, then we can make a special case and say we're done.
-        // If offset doesn't get changed (--distance = 0) it doesn't alter the
-        // behavior - it loops forever like we wanted.
-        if (offset_ == stop_) {
+        // Special case: this is the first run through when have start and stop as
+        // the same note.  We need to return false at least once so that note does
+        // get played!  This also means that it loops forever if the distance is
+        // set to zero (which is what we want).
+        if (offset_ == stop_ && start_ == stop_) {
+          // trc("offset_ == stop_ && start_ == stop_");
           return false;
         }
         else if (start_ < stop_) {
-          return offset_ <= stop_;
+          // trc("start_ < stop_");
+          return offset_ > stop_;
         }
         else if (start_ > stop_) {
-          return offset_ >= stop_;
+          // trc("start_ > stop_");
+          return offset_ < stop_;
         }
         else if (start_ == stop_) {
+          // trc("start_ == stop_");
           return true;
+        }
+        else {
+          // shouldn't get here!
+          assert(false);
         }
       }
 
