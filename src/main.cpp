@@ -236,7 +236,7 @@ int main(int argc, char **argv) {
     do {
       trc("begin loop");
       // note_seq::iterator i = note_seq.begin() ...
-      do {
+      while (! note_seq.done()) {
         trc("get next freq.");
         double freq = note_seq.next_frequency(); // (or *i if I get that wokring)
         // can use iterator?
@@ -278,7 +278,7 @@ int main(int argc, char **argv) {
         }
 
         trc("finished this note");
-      } while (! note_seq.done());
+      }
       trc("finished this sequence");
     } while (set.loop());
 

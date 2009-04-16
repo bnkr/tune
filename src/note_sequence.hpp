@@ -7,12 +7,16 @@
 
 #include "settings.hpp"
 
+#include <boost/lexical_cast.hpp>
+
 #include <cmath>
 #include <cassert>
 #include <cstring>
 
+#include <vector>
 #include <stdexcept>
 #include <memory>
+#include <string>
 
 #ifndef trc
 #  define trc(x)
@@ -21,8 +25,7 @@
 //! \brief Turn a note into steps-from-concert-a.
 int parse_note(const char *note_str) {
   assert(note_str);
-  std::size_t s = std::strlen(note_str);
-  assert(s > 0);
+  assert(std::strlen(note_str) > 0);
 
   int name = note_str[0];
   if (name >= 'a' && name <= 'g') {
@@ -84,6 +87,12 @@ int parse_note(const char *note_str) {
   return name;
 }
 
+//! \brief Based on concert_pitch, find the  note offset half steps away.
+inline double offset_to_frequency(double concert_pitch, int offset) {
+  return std::pow(2, (offset/12.0)) * concert_pitch;
+}
+
+
 namespace detail {
 
   //! \brief Abstract base for the implementation of a note sequence.
@@ -104,23 +113,29 @@ namespace detail {
 
       // TODO: no need for this to be virtual - just assign a bool in sequence_engine.
       bool done() {
+        // Bit of a hack lets us have --start == --end since offset_ will get
+        // changed anyway, then we can make a special case and say we're done.
+        // If offset doesn't get changed (--distance = 0) it doesn't alter the
+        // behavior - it loops forever like we wanted.
         if (offset_ == stop_) {
-          trc("this is only one note: it's always done.");
           return false;
         }
         else if (start_ < stop_) {
           return offset_ <= stop_;
         }
-        else {
+        else if (start_ > stop_) {
           return offset_ >= stop_;
+        }
+        else if (start_ == stop_) {
+          return true;
         }
       }
 
       double next_frequency() {
-        double x = std::pow(2, (offset_/12.0)) * concert_pitch_;
-        trc("we're on " << offset_);
+        double x = offset_to_frequency(concert_pitch_, offset_);
+        // trc("we're on " << offset_);
         offset_ += step_;
-        trc("increment to " << offset_);
+        // trc("increment to " << offset_);
         return x;
       }
 
@@ -132,6 +147,63 @@ namespace detail {
       const int stop_;
   };
 
+  //! \brief Based on a list of strings
+  class listed_sqeuence : public sequence_engine {
+    public:
+      template<class InputIterator>
+      listed_sqeuence(double concert_pitch, InputIterator begin, InputIterator end, std::size_t reserve = 0) {
+        frequencies_.reserve(reserve);
+        while (begin != end) {
+          if (is_floating_point<typename InputIterator::value_type>(*begin)) {
+            double f = boost::lexical_cast<double>(*begin);
+            frequencies_.push_back(f);
+          }
+          else {
+            int offset = parse_note(begin->c_str());
+            frequencies_.push_back(offset_to_frequency(concert_pitch, offset));
+          }
+          ++begin;
+        }
+        iter_ = frequencies_.begin();
+      }
+
+      // TODO: better to use the iterators directly.
+      bool done() {
+        return iter_ == frequencies_.end();
+      }
+
+      double next_frequency() {
+        freq_list_type::iterator i = iter_;
+        ++iter_;
+        return *i;
+      }
+
+      template<class String>
+      bool is_floating_point(const String &s) {
+        typedef typename String::const_iterator iter_type;
+        iter_type i = s.begin();
+        bool found_frac = false;
+        for (;i < s.end(); ++i) {
+          if (*i == '.') {
+            if (found_frac) {
+              return false;
+            }
+            else {
+              found_frac = true;
+            }
+          }
+          else if (*i < '0' || *i > '9') {
+            return false;
+          }
+        }
+        return true;
+      }
+
+    private:
+      typedef std::vector<double> freq_list_type;
+      freq_list_type frequencies_;
+      freq_list_type::iterator iter_;
+  };
 }
 
 
@@ -144,11 +216,18 @@ namespace detail {
 //   the virtaul function call?  Even using a switch might be nicer due to inlining...
 //   have to benchmark it.
 //
+// TODO:
+//   could be interesting to try waiting until the sine wave is near its lowest
+//   frequency before terminating the buffer.  That way we wouldn't get the pop on
+//   the sound card.
 class note_sequence {
   public:
     note_sequence(settings &set) {
       if (set.note_mode() == settings::note_mode_list) {
-        throw std::logic_error("not implemented");
+        impl_.reset(new detail::listed_sqeuence(
+              set.concert_pitch(),
+              set.note_list().begin(), set.note_list().end(),
+              set.note_list().size()));
       }
       else {
         assert(set.note_mode() == settings::note_mode_start);
