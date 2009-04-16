@@ -86,8 +86,8 @@ codec's 16le with 16be if you are on a big endian system).
 
 .RS 4
 .nf
-$ ffmpeg -f s16le -acodec pcm_s16le -i $rawfile \\
-  -acodec pcm_s16le -ac $channels  output.wav
+$ ffmpeg -f s16le -ac $channels -acodec pcm_s16le -i $rawfile \\
+  -acodec pcm_s16le output.wav
 .fi
 .RE
 
