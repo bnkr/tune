@@ -113,7 +113,7 @@ class sample_generator {
 
     //! \brief Return output samples until the time is fullfiled.
     void *get_samples() {
-      trc("get a sample period.  Index = " << buffer_index_ << " / " << buffer_size_);
+      // trc("get a sample period.  Index = " << buffer_index_ << " / " << buffer_size_);
 
       // TODO: different sized samples?
 

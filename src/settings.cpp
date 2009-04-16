@@ -10,10 +10,10 @@
 namespace {
   const char *usage_message() {
     return
-      "usage: tune [option]... [note[#|B][N]|freq]...\n"
-      "Play one or more notes in order.  Notes are a-g with a # or B suffix or a\n"
-      "frequency value.  The N suffix to a note decides which octave to play on.  Or\n"
-      "you can specify the frequcncy directly.  Options and arguments can be in any\n"
+      "usage: tune [option]... [note[#|B][+|-]|freq]...\n"
+      "Play one or more notes in order.  Notes are a-g with a # or B suffix optionally\n"
+      "followed by a '+' or '-' to denote offset from concert pitch octave.  Otherwise\n"
+      "a frequency value may be supplied directly.  Options and arguments can be in any\n"
       "order.   With no notes, it defaults to A at 440hz.\n"
       ;
   }
@@ -50,6 +50,8 @@ void settings::parse_args(int argc, char **argv) {
      "Dump raw samples to a file.")
     ("start,s", po::value<std::string>(&start_note_),
      "Note name or frequency to start with.")
+    ("offset", po::value<double>(&frequency_offset_),
+     "Frequency offset of concert pitch A.  (For `slightly out' tunings.)")
     ("distance,d", po::value<int>(&note_distance_),
      "Half notes between notes starting from -s, --start.  Default: " DEFAULT_NOTE_DISTANCE_STR)
     ("number,n", po::value<int>(&num_notes_),
@@ -87,6 +89,7 @@ void settings::parse_args(int argc, char **argv) {
   // TODO: somehow I have to work out how to make it stop after one octave
   num_notes_;
 
+
   if (vm.count("volume")) {
     if (volume_ < 0 || volume_ > 100) {
       // TODO: throw an error here
@@ -102,9 +105,19 @@ void settings::parse_args(int argc, char **argv) {
 
   if (vm.count("loop")) { flags_[fl_loop] = true; }
 
-  // now loop the non-options values
-  // validate notes list vs. start note. (they are mutually exclusive)
+  // now loop the non-options values which are in 'parsed'
   // also note_mode_list/note_mode_start.
 
+  // if (vm.count("start") && there_are_notes_specified) {
+  //   error
+  // }
+
+  if (vm.count("start")) {
+    // TODO: convert start_note_ to a frequency?!
+    start_note_;
+  }
+  else {
+    // validate notes list
+  }
 }
 

@@ -13,6 +13,8 @@ include("build-aux/btest.cmake")
 
 butil_standard_setup()
 
+enable_testing()
+
 ####################################################
 ## Checking for required headers; making config.h ##
 ####################################################

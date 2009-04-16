@@ -158,6 +158,17 @@ int main(int argc, char **argv) {
       return set.exit_status();
     }
 
+    if (set.verbosity_level() >= set.verbosity_verbose) {
+      if (set.note_mode() == settings::note_mode_list) {
+        std::cout << "Playing notes from a list: " << std::endl;
+        // TODO: print the list (and frequency conversions?)
+      }
+      else {
+        std::cout << "Playing notes based on a start note." << std::endl;
+        // and another from
+      }
+    }
+
     // declare this quick because it does a lot of validation
     note_sequence note_seq(set);
 
@@ -210,13 +221,10 @@ int main(int argc, char **argv) {
         trc("note: " << freq);
         // TODO: much neater to pass a functor to do something whith each of the buffers.
         while ((samples = buffer.get_samples()) != NULL) {
-          trc("got " << samples);
           pusher.push(samples);
           dump_file.dump(samples);
-          trc("pushed " << samples);
 
-          // TODO: how keypress formed?
-          if (keys.pressed()) { // nonblocking i/o somehow?
+          if (keys.pressed()) {
             // flush next time we have a full buffer.
             pusher.flush_next_push();
             break;
