@@ -5,6 +5,10 @@
 #ifndef SETTINGS_HPP_g0vr9k40
 #define SETTINGS_HPP_g0vr9k40
 
+// TODO: manpage needs updating for all the new options, also give more examples:
+// - play a scale
+// - tune a guitar
+
 #include <vector>
 #include <string>
 #include <bitset>

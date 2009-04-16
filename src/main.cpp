@@ -192,6 +192,7 @@ int main(int argc, char **argv) {
         // can use iterator?
         trc("note " << freq << " for " << set.duration_ms() << "ms");
         calc.reset_wave(freq);
+        // TODO: this breaks when duration is forever.
         buffer.reset_time(set.duration_ms());
 
         trc("note: " << freq);
@@ -200,6 +201,10 @@ int main(int argc, char **argv) {
           pusher.push(samples);
           dump_file.dump(samples);
 
+          // TODO:
+          //   once I have the "exit when near zero" thing to stop popping, this bit
+          //   needs to do it as well.  I guess we could set the buffer time to 0 ms
+          //   and just keep going?  Flushing will still work like this.
           if (keys.pressed()) {
             // flush next time we have a full buffer.
             pusher.flush_next_push();
@@ -218,6 +223,7 @@ int main(int argc, char **argv) {
           while ((samples = buffer.get_silence()) != NULL) {
             pusher.push(samples);
             dump_file.dump(samples);
+            // TODO: don't I need to flush here?
             if (keys.pressed()) {
               break;
             }

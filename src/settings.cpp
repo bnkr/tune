@@ -1,5 +1,7 @@
 #include "settings.hpp"
 
+#include "notes.hpp"
+
 #include <tune_config.hpp>
 
 #include <boost/program_options.hpp>
@@ -39,6 +41,7 @@ void settings::print_version() {
 void settings::parse_args(int argc, char **argv) {
   namespace po = boost::program_options;
 
+  std::string root_note;
   po::options_description all_opts("Options");
   all_opts.add_options()
     ("help,h", "This message and quit.")
@@ -60,6 +63,8 @@ void settings::parse_args(int argc, char **argv) {
      "How many notes to play from --start with.  Default: keep going until an octave.")
     ("concert-pitch,p", po::value<double>(&concert_pitch_),
      "Frequency of the base note that we work all other notes out from.  Default: 400hz (A).")
+    ("concert-pitch-note", po::value<std::string>(&root_note),
+     "Note name of the base note that we work all other notes out from (eg, aB to tune down half a step.  Default: (A).")
     ("volume,a", po::value<int>(&volume_),
      "Amplitude number between 0 and 100.  Default: " DEFAULT_VOLUME_STR)
     ("rate", po::value<int>(&sample_rate_),
@@ -103,6 +108,14 @@ void settings::parse_args(int argc, char **argv) {
 
   if (vm.count("verbose")) {
     verbosity_level_ = verbosity_verbose;
+  }
+
+  if (vm.count("concert-pitch") && vm.count("concert-pitch-note")) {
+    throw std::runtime_error("--concert-pitch and --concert-pitch-note conflict");
+  }
+  else if (vm.count("concert-pitch-note")) {
+    // TODO: if I'm parsing this note here, why not parse all the other notes too?
+    concert_pitch_ = parse_note(root_note.c_str());
   }
 
   if (vm.count("loop")) { flags_[fl_loop] = true; }
