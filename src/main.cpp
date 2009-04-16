@@ -13,11 +13,13 @@
 #include "calculations.hpp"
 #include "note_sequence.hpp"
 #include "sync_data.hpp"
+#include "key_reader.hpp"
 
 #include <iostream>
 
 #include <cstdlib>
 #include <cstring>
+#include <csignal>
 
 #include <bdbg/trace/crash_detection.hpp>
 
@@ -45,7 +47,7 @@ bdbg::trace::crash_detector cd;
 
 #include <string>
 
-// TODO: needs to handle the case where we don't want to dump anything :)
+// TODO: pretty messy
 class sample_dumper {
   public:
     sample_dumper(bool enabled, const std::string &filename, std::size_t buffer_size)
@@ -114,59 +116,7 @@ void reader_callback(void *, uint8_t *stream, int length) {
   std::free(buf);
 }
 
-#include <fcntl.h>
 
-//! \brief Non-blocking reader of stdin.
-//
-//TODO:
-//   make this portable. maybe I should jsut do it in another thread?
-//   boost asio is so complicated for this... you need to set up all kinds of machinary to
-//   organise it.
-//
-//   Thread is easiest because all we need to synchronise is the termination, and we can just
-//   join this thread sinec we control it.
-class key_reader {
-  public:
-    key_reader() {
-      int flags = fcntl(fileno(stdin), F_GETFL, 0);
-      flags |= O_NONBLOCK;
-      fcntl(fileno(stdin), F_SETFL, flags);
-    }
-
-    ~key_reader() {
-      int flags = fcntl(fileno(stdin), F_GETFL, 0);
-      flags &= ~O_NONBLOCK;
-      fcntl(fileno(stdin), F_SETFL, flags);
-    }
-
-    bool pressed() {
-      const std::size_t buf_sz = 1024;
-      char buf[buf_sz];
-      ssize_t v = read(fileno(stdin), buf, 1);
-      if (v == -1) {
-        if (errno == EAGAIN) {
-          // trc("key.pressed(): op would block.");
-          return false;
-        }
-        else {
-          trc("key.pressed(): another kind of error.")
-          // arses.
-          return false;
-        }
-      }
-      else {
-        // purge the stream until wouldblock or it's empty
-        do {
-          v = read(fileno(stdin), buf, buf_sz);
-        }
-        while (v > 0);
-        trc("key.pressed(): there was stuff in the buffer - a key was pressed.")
-        return true;
-      }
-    }
-};
-
-#include <csignal>
 
 bool interrupt = false;
 
