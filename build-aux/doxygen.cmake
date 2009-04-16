@@ -15,32 +15,16 @@
 #
 # == Quick guide ==
 #
-# TODO: update this guide for the new api.
-#
-#   option(WANT_DOXYGEN ...
-#   option(WANT_DOXYGEN_REBUILD...
-#   if (WANT_DOXYGEN)
-#     set(DOXYGEN_WANTS "pdf" "html")
-#   endif()
-#
-#   set(DOXYGEN_TARGET "doxygen")
-#   doxygen_setup_flags(DOXYGEN_FLAGS "${DOXYGEN_TARGET}" "${DOXYGEN_WANTS}")
-#   add_doxygen("${DOXYGEN_TARGET}" "${CMAKE_SOURCE_DIR}/Doxyfile.base"
-#               "${DOXYGEN_FLAGS}")
-#
-#   if (WANT_DOXYGEN_REBUILD)
-#     set(INSTALL_FROM "")
-#     add_custom_target(doxygen_dep ALL DEPENDS doxygen_main)
-#   else()
-#     set(INSTALL_FROM "${CMAKE_SOURCE_DIR}/doc/")
-#   endif()
-#
-#   doxygen_install_targets(
-#     "${DOXYGEN_TARGET}" 
-#     "${DOXYGEN_WANTS}" 
-#     "${DOCDIR}" 
-#     "${INSTALL_FROM}"
+#   add_doxygen_directives(
+#     TARGET doxygen
+#     INPUTS "src/"
+#     ARGS_VAR ad_args
+#     DOCS_MIRROR "${CMAKE_SOURCE_DIR}/doc"
+#     DEFAULT_DOXYFILE "${CMAKE_SOURCE_DIR}/Doxyfile.default"
+#     INSTALL ${WANT_DOCS}
 #   )
+#   add_doxygen(${ad_args})
+#  
 # 
 # This gives you a bunch of doxygen-related targets, plus the ability to 
 # either install docs that you distributed or build new ones.  Also note
@@ -703,13 +687,18 @@ function(add_doxygen target_name template_file directives_list)
   # We got this as an argument, bloody ages ago :)
   if (arg_INPUTS) 
     set(input_over)
-    foreach (${i} ${arg_INPUTS})
+    foreach (i ${arg_INPUTS})
       set(input_over "${input_over} \"${i}\"")
     endforeach()
-  endif()
 
-  if (input_over)
+    if (DOXYGEN_CMAKE_VERBOSE)
+      message(STATUS "add_doxygen(): input forced as: ${conf_INPUT}")
+    endif()
+
     add_doxygen_override_var(INPUT "${input_over}")
+    list(APPEND extra_force "INPUT")
+  elseif(DOXYGEN_CMAKE_VERBOSE)
+    message(STATUS "add_doxygen(): input from doxyfile template: ${conf_INPUT}")
   endif()
 
   # Retroactively set the defaults now to avoid getting warnings earlier.
@@ -717,6 +706,7 @@ function(add_doxygen target_name template_file directives_list)
   add_doxygen_set_ifndef(GENERATE_HTML   "YES")
   add_doxygen_set_ifndef(GENERATE_MAN    "NO")
   add_doxygen_set_ifndef(USE_PDFLATEX    "YES")
+  add_doxygen_set_ifndef(INPUT           "include/")
 
   if (NOT conf_GENERATE_HTML AND NOT conf_GENERATE_MAN AND NOT conf_GENERATE_LATEX)
     message(STATUS "add_doxygen(): warning: doxygen doesn't seem to be set to generate anything.")

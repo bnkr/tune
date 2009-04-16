@@ -273,6 +273,8 @@ endmacro()
 #
 # TODO:
 #   Executable_name stuff.  This is problematic.  It a list of pairs ("path" "name").
+#   Maybe we can have LIBS and BINS and default arg_RUNNABLES from the paths specified
+#   in BINS.
 #
 # TODO: can we autodetect binaries?
 #
@@ -368,6 +370,7 @@ macro(butil_cpack_setup)
   if (arg_RUNNABLES)
     set(CPACK_PACKAGE_EXECUTABLES ${arg_RUNNABLES})
   endif()
+
   set(CPACK_STRIP_FILES "${arg_BINARIES}")
 
   include(CPack)

@@ -1,5 +1,6 @@
 # This file is a simple interface to manpage generation.
 # 
+###################################################
 # FUNCTION: add_manpage_gz(OUTPUT_VAR, INPUT_FILE):
 #   Build a gzipped manpage.  Should be installed manually.  Will always be
 #   built into ${MANPAGE_OUTPUT_DIR}.
@@ -9,6 +10,7 @@
 #
 #     install(FILES ${PAGE} DESTINATION ${MANDIR})
 #
+##########################################################
 # FUNCTION: add_and_install_manpages(MANDIR, PAGE1, [...]):
 #   Uses add_manpage_gz to build manpages and adds install targets for them.
 #   
@@ -65,6 +67,11 @@ macro(add_manpage_gz output_var input)
 endmacro(add_manpage_gz)
 
 function(add_and_install_manpages mandir)
+
+  # TODO: 
+  #   Make it like:
+  #   add_and_install_manpages(ROOT manroot PAGES page...)
+
   set(pages "${ARGV}")
   list(REMOVE_AT pages 0)
   if (NOT pages)
