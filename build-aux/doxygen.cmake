@@ -362,7 +362,7 @@ macro(add_doxygen_directives)
 
   string(TOUPPER "${arg_TARGET}" target_upcase)
   set(pdf_cachevar WANT_${target_upcase}_PDF)
-  set(html_cachevar WANT_${target_upcase}_PDF)
+  set(html_cachevar WANT_${target_upcase}_HTML)
   set(rebuild_cachevar "WANT_${target_upcase}_REBUILD")
   set(doxyfile_cachevar "${target_upcase}_DOXYFILE_TEMPLATE")
 
@@ -581,7 +581,7 @@ function(add_doxygen target_name template_file directives_list)
     endforeach()
 
     if (DOXYGEN_CMAKE_VERBOSE AND is_none)
-      message("add_doxygen(): outputs are forced to none.")
+      message("add_doxygen(): OUTPUTS have the value \"none\" - everthing will be forced off.")
     endif()
 
     set(possible_outs "HTML" "MAN" "LATEX")
