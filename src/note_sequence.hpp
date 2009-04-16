@@ -246,7 +246,7 @@ class note_sequence {
         if (! set.end_note().empty()) {
           stop_offset = parse_note(set.end_note().c_str());
         }
-        else if (set.num_notes() <= 0) {
+        else if (set.num_notes() >= 0) {
           stop_offset = start_offset + set.num_notes() * set.note_distance();
         }
         else {

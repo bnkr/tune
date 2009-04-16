@@ -56,8 +56,8 @@ void settings::parse_args(int argc, char **argv) {
      "Half notes between notes starting from -s, --start.  Default: " DEFAULT_NOTE_DISTANCE_STR)
     ("end,e", po::value<std::string>(&end_note_),
      "Note name or frequency to end on with.")
-    ("number,n", po::value<int>(&num_notes_),
-     "How many notes to play from --start with.  Default: stop after one octave.")
+    ("number,n", po::value<int>(&num_increments_),
+     "How many notes to play from --start with.  Default: keep going until an octave.")
     ("concert-pitch,p", po::value<double>(&concert_pitch_),
      "Frequency of the base note that we work all other notes out from.  Default: 400hz (A).")
     ("volume,a", po::value<int>(&volume_),
@@ -89,7 +89,7 @@ void settings::parse_args(int argc, char **argv) {
   duration_; // above 0.
   sample_rate_; // warn if it's not common mabe?
   // TODO: somehow I have to work out how to make it stop after one octave
-  num_notes_;
+  num_increments_;
 
 
   if (vm.count("volume")) {
@@ -116,9 +116,12 @@ void settings::parse_args(int argc, char **argv) {
 
   if (vm.count("start")) {
     note_mode_ = note_mode_start;
-    if (vm.count("number") && num_notes_ <= 0) {
+    if (vm.count("number") && num_increments_ <= 0) {
       throw std::runtime_error("value is less than 1 for --number");
     }
+
+    // Translate number of notes into number of increments.
+    --num_increments_;
 
     if (note_distance_ == 0) {
       std::cout << "warning: --distance is 0: the note won't change." << std::endl;

@@ -4,7 +4,7 @@
 */
 
 #ifndef KEY_READER_HEADER
-#  error Don't include this file directly.  Use key_reader.hpp instead.
+#  error Don not include this file directly.  Use key_reader.hpp instead.
 #endif
 
 #include <boost/thread.hpp>
@@ -13,6 +13,8 @@
 #include <iostream>
 
 //! \brief Non-blocking reader of stdin.
+//TODO:
+//  use boost.asio instead somehow.
 class key_reader_win32 : private detail::key_reader_interface {
   public:
     key_reader_win32()
@@ -25,12 +27,18 @@ class key_reader_win32 : private detail::key_reader_interface {
 
     // TODO: bleh.  Doesn't work.
     bool pressed() {
-      bool b = pressed_;
+      bool b;
       // TODO: use atomics of course.
       {
-        boost::mutex::socoped_lock lk(mut_);
+        boost::mutex::scoped_lock lk(mut_);
+        b = pressed_;
         pressed_ = false;
       }
+
+      if (b) {
+        trc("key was pressed");
+      }
+
       return b;
     }
 
@@ -38,7 +46,8 @@ class key_reader_win32 : private detail::key_reader_interface {
       char c;
       std::cin >> c;
       {
-        boost::mutex::socoped_lock lk(mut_);
+        boost::mutex::scoped_lock lk(mut_);
+        trc("notify keypress");
         pressed_ = true;
       }
     }

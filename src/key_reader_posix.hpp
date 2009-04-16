@@ -3,7 +3,7 @@
 \brief Non-Portable POSIX non-blocking keypress detector.
 */
 #ifndef KEY_READER_HEADER
-#  error Don't include this file directly.  Use key_reader.hpp instead.
+#  error Don not include this file directly.  Use key_reader.hpp instead.
 #endif
 
 #include <fcntl.h>

@@ -21,8 +21,8 @@
 #define DEFAULT_CHANNELS_STR      "2"
 #define DEFAULT_SAMPLE_RATE       44100
 #define DEFAULT_SAMPLE_RATE_STR   "44100"
-#define DEFAULT_NOTE_DISTANCE     5
-#define DEFAULT_NOTE_DISTANCE_STR "5"
+#define DEFAULT_NOTE_DISTANCE     2
+#define DEFAULT_NOTE_DISTANCE_STR "2"
 #define DEFAULT_PAUSE_TIME        500
 #define DEFAULT_PAUSE_TIME_STR    "500"
 #define DEFAULT_VOLUME_INT        75
@@ -57,10 +57,22 @@ class settings {
       parse_args(argc, argv);
     }
 
+    //! \name Program operations
+    //@{
+    note_mode_type note_mode() const { return note_mode_; }
+
+    int verbosity_level() const { return verbosity_level_; }
+
+    bool exit() const { return exit_status_ != no_exit; }
+    int exit_status() const { return (int) exit_status_; }
+
+    bool dump_to_file() const { return ! dump_file_.empty(); }
+    const std::string &dump_file() const { return dump_file_; }
+    //@}
+
     //! \name Regadring the explicit note list.
     //@{
     // \brief Use this to decide whether to use the notes() or start_note().
-    note_mode_type note_mode() const { return note_mode_; }
     const notes_list_type &note_list() const { return notes_; }
     //@}
 
@@ -72,10 +84,15 @@ class settings {
     //! \brief Note that *both* this and num_notes() may be invalid.
     const std::string &end_note() const { return end_note_; }
     //! \brief Distance between notes in steps.
-    int note_distance() const { return note_distance_; }
-    //! \brief How many increments of note_distance() to start_note()?  -1 if not given.
-    int num_notes() const { return num_notes_; }
+    int note_increment() const { return note_distance_; }
+    //! \brief How many note_increment()'s to make.  -1 if not given.  Can be zero.
+    int num_note_increments() const { return num_increments_; }
     //@}
+
+    //! \deprecated
+    int num_notes() const { return num_note_increments(); }
+    //! \deprecated
+    int note_distance() const { return note_distance_; }
 
     //! \name Regarding the `playlist'
     //@{
@@ -98,17 +115,6 @@ class settings {
     //! \name Regarding technicalities of music.
     //@{
     double concert_pitch() const { return concert_pitch_; }
-    //@}
-
-    //! \name Program operations
-    //@{
-    int verbosity_level() const { return verbosity_level_; }
-
-    bool exit() const { return exit_status_ != no_exit; }
-    int exit_status() const { return (int) exit_status_; }
-
-    bool dump_to_file() const { return ! dump_file_.empty(); }
-    const std::string &dump_file() const { return dump_file_; }
     //@}
 
     static const int verbosity_quiet = 0;
@@ -173,7 +179,7 @@ class settings {
     int note_distance_;
     int verbosity_level_;
     int pause_time_;
-    int num_notes_;
+    int num_increments_;
     int volume_;
     double concert_pitch_;
 
@@ -194,7 +200,7 @@ class settings {
       verbosity_level_ = verbosity_normal;
       volume_ = DEFAULT_VOLUME_INT;
       note_mode_ = note_mode_list;
-      num_notes_ = -1;
+      num_increments_ = -1;
       concert_pitch_ = 440.0;
     }
 
