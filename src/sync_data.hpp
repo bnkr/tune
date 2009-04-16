@@ -41,8 +41,12 @@ boost::condition_variable quit_cond;
 //   This is an important design thing for para, so we'll leave it until
 //   I have finished the rest of this stuff.
 
-bool push_continue_predicate() { return queue.data().size() > 10 || quitting; }
-bool pop_continue_predicate() { return ! queue.data().empty() || quitting; }
+bool push_continue_predicate() {
+  return queue.data().size() < 10 || quitting;
+}
+bool pop_continue_predicate() {
+  return ! queue.data().empty() || quitting;
+}
 
 
 
@@ -67,7 +71,6 @@ class queue_pusher {
 
     //! \brief Blocking operation to push the buffer.
     void push(void *buffer) {
-
       monitor_type monitor(sync_, push_continue_predicate);
       // would be nicer if I could get this by monitor::data().
       typename TupleType::value_type &q = sync_.data();
@@ -79,12 +82,16 @@ class queue_pusher {
         flush_ = false;
       }
       q.push(buffer);
+      // trc("push finished: size = " << sync_.data().size());
+      sync_.wait_condition().notify_one();
     }
 
     void *pop() {
       monitor_type m(sync_, pop_continue_predicate);
       void *r = sync_.data().front();
       sync_.data().pop();
+      // trc("pop finished: size = " << sync_.data().size());
+      sync_.wait_condition().notify_one();
       return r;
     }
 

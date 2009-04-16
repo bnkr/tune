@@ -3,6 +3,9 @@
 \brief main()
 */
 
+#include <bdbg/trace/short_macros.hpp>
+#include <bdbg/trace/static_definitions.hpp>
+
 #include <tune_config.hpp>
 
 #include "sdl.hpp"
@@ -14,7 +17,11 @@
 #include <iostream>
 
 #include <cstdlib>
+#include <cstring>
 
+#include <bdbg/trace/crash_detection.hpp>
+
+bdbg::trace::crash_detector cd;
 
 
 // TODO:
@@ -31,59 +38,117 @@
 //   For now I will do it the global way, and try to make a monitored T which
 //   will fix the problems.
 
+
+// TODO:
+//   when ctrl+c happens, exit more safely and play some short silence at the
+//   end.
+
 #include <string>
 
+// TODO: needs to handle the case where we don't want to dump anything :)
 class sample_dumper {
   public:
-    sample_dumper(const std::string &filename, std::size_t buffer_size) {}
-    void dump(void *buf) {}
+    sample_dumper(bool enabled, const std::string &filename, std::size_t buffer_size)
+    : enabled_(enabled), buffer_size_(buffer_size), out_(filename.c_str(), std::ios::out|std::ios::trunc) {}
+
+    void dump(const void *buf) {
+      if (! enabled_) return;
+      out_.write((const char*) buf, buffer_size_);
+    }
+
+  private:
+    bool enabled_;
+    std::size_t buffer_size_;
+    std::ofstream out_;
 };
 
 
 // another messy global... perhaps those methods should be part of the
-// synced struct?
+// synced struct?  More discussion about that on the sunc_data header.
+// It is an interesting observation that we basically have the same
+// bool get(T &ret) format that an LFDS has.  We can generalise this as
+// an adaptor pattern which locks a stl container.  Give them a functor
+// for whether to push/pop/push_back etc.
 queue_pusher<sync_queue_type> *qp = NULL;
 
 void reader_callback(void *, uint8_t *stream, int length) {
-  assert(qp);
+  // argh! horrible messy - means  we didn't set up properly yet!
+  if (! qp) return;
   // use quitting and quit_cond somehow :)
   //
   //
   // oops no good - we don't always pop something... maybe we
   // just keep going until null?  Thne a lot of problems
   // evaporate!
+
+  // TODO: use lfds style:
+  //
+  //   void *buf;
+  //   if (! qp->pop(buf)) ...
+  //
+  //   If we could lib this up into a generic sync_container or something
+  //   it would be really good.
   void *buf = qp->pop();
   if (! buf) {
-    // this is a two-flag version of the sync flag thing.  The only thing is we don't
-    // check active() first.  That's ok in this context, and possibly safer - we are
-    // using two flags, effectively.
-    terminated = true;
+    // rather messy.
+    if (quitting) terminated = false;
     return;
   }
 
   std::memcpy(stream, buf, length);
+  std::free(buf);
 }
 
 #include <fcntl.h>
 
 //! \brief Non-blocking reader of stdin.
-//TODO: make this portable
+//
+//TODO:
+//   make this portable. maybe I should jsut do it in another thread?
+//   boost asio is so complicated for this... you need to set up all kinds of machinary to
+//   organise it.
+//
+//   Thread is easiest because all we need to synchronise is the termination, and we can just
+//   join this thread sinec we control it.
 class key_reader {
   public:
     key_reader() {
-      int flags = fcntl(0, F_GETFL, 0);
+      int flags = fcntl(fileno(stdin), F_GETFL, fileno(stdin));
       flags |= O_NONBLOCK;
-      fcntl(0, F_SETFL, flags);
+      fcntl(fileno(stdin), F_SETFL, flags);
     }
 
     ~key_reader() {
-      int flags = fcntl(0, F_GETFL, 0);
+      int flags = fcntl(fileno(stdin), F_GETFL, fileno(stdin));
       flags &= ~O_NONBLOCK;
-      fcntl(0, F_SETFL, flags);
+      fcntl(fileno(stdin), F_SETFL, flags);
     }
 
-    // TODO: fix this
-    bool pressed() { return false; }
+    bool pressed() {
+      const std::size_t buf_sz = 1024;
+      char buf[buf_sz];
+      ssize_t v = read(fileno(stdin), buf, 1);
+      if (v == -1) {
+        if (errno == EAGAIN) {
+          trc("key.pressed(): op would block.");
+          return false;
+        }
+        else {
+          trc("key.pressed(): another kind of error.")
+          // arses.
+          return false;
+        }
+      }
+      else {
+        // purge the stream.
+        do {
+          v = read(fileno(stdin), buf, buf_sz);
+        }
+        while (v);
+        trc("key.pressed(): there was stuff in the buffer - a key was pressed.")
+        return true;
+      }
+    }
 };
 
 int main(int argc, char **argv) {
@@ -112,13 +177,17 @@ int main(int argc, char **argv) {
 
     dev.unpause();
 
-    sine_calculation calc(dev.obtained().channels(), dev.obtained().frequency());
+    trc("amp: " << set.amplitude());
+    trc("vol: " << set.volume());
 
-    // we need to take a lot of stuff into account when calculating the right time
-    // period of buffer.
-    sample_generator buffer(calc, dev.obtained()); // , dev.obtained().buffer_samples(), dev.obtained().buffer_size());
+    sine_calculation calc(dev.obtained().channels(), dev.obtained().frequency(), set.amplitude());
 
-    sample_dumper dump_file(set.dump_file(), dev.obtained().buffer_size());
+    if (set.verbosity_level() >= set.verbosity_verbose) {
+      std::cout << "volume: " << set.volume() << std::endl;
+    }
+
+    sample_generator buffer(calc, dev.obtained());
+    sample_dumper dump_file(set.dump_to_file(), set.dump_file(), dev.obtained().buffer_size());
 
     key_reader keys;
 
@@ -129,16 +198,22 @@ int main(int argc, char **argv) {
     queue_pusher<sync_queue_type> pusher(queue);
     qp = &pusher;
     do {
+      trc("begin loop");
       // note_seq::iterator i = note_seq.begin() ...
       while (! note_seq.done()) {
         double freq = note_seq.next_frequency(); // (or *i if I get that wokring)
         // can use iterator?
+        trc("note " << freq << " for " << set.duration_ms() << "ms");
         calc.reset_wave(freq);
-        buffer.reset(set.duration_ms());
+        buffer.reset_time(set.duration_ms());
 
+        trc("note: " << freq);
+        // TODO: much neater to pass a functor to do something whith each of the buffers.
         while ((samples = buffer.get_samples()) != NULL) {
+          trc("got " << samples);
           pusher.push(samples);
           dump_file.dump(samples);
+          trc("pushed " << samples);
 
           // TODO: how keypress formed?
           if (keys.pressed()) { // nonblocking i/o somehow?
@@ -149,7 +224,8 @@ int main(int argc, char **argv) {
         }
 
         if (set.pause_ms()) {
-          buffer.reset(set.pause_ms());
+          trc("pause between notes");
+          buffer.reset_time(set.pause_ms());
 
           while ((samples = buffer.get_silence()) != NULL) {
             pusher.push(samples);

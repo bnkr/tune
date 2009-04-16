@@ -15,18 +15,18 @@
 #include <cstdlib>
 
 // so we can string it in the help text
-#define DEFAULT_NOTE_DURATION     200
-#define DEFAULT_NOTE_DURATION_STR "200"
+#define DEFAULT_NOTE_DURATION     2000
+#define DEFAULT_NOTE_DURATION_STR "2000"
 #define DEFAULT_CHANNELS          2
 #define DEFAULT_CHANNELS_STR      "2"
 #define DEFAULT_SAMPLE_RATE       44100
 #define DEFAULT_SAMPLE_RATE_STR   "44100"
 #define DEFAULT_NOTE_DISTANCE     8
 #define DEFAULT_NOTE_DISTANCE_STR "8"
-#define DEFAULT_PAUSE_TIME        5
-#define DEFAULT_PAUSE_TIME_STR    "5"
-#define DEFAULT_AMPLITUDE_INT     75
-#define DEFAULT_AMPLITUDE_STR     "75"
+#define DEFAULT_PAUSE_TIME        500
+#define DEFAULT_PAUSE_TIME_STR    "500"
+#define DEFAULT_VOLUME_INT        75
+#define DEFAULT_VOLUME_STR        "75"
 
 namespace boost {
   namespace program_options {
@@ -82,14 +82,15 @@ class settings {
 
     int sample_rate() const { return sample_rate_; }
     int channels() const { return channels_; }
-    double amplitude() const { return amplitude_; }
+    double amplitude() const { return volume_ / 100.0; }
+    int volume() const { return volume_; }
 
     int verbosity_level() const { return verbosity_level_; }
 
     bool exit() const { return exit_status_ != no_exit; }
     int exit_status() const { return (int) exit_status_; }
 
-    bool dump_to_file() const { return dump_file_.length(); }
+    bool dump_to_file() const { return ! dump_file_.empty(); }
     const std::string &dump_file() const { return dump_file_; }
 
     static const int verbosity_quiet = 0;
@@ -124,7 +125,7 @@ class settings {
     int verbosity_level_;
     int pause_time_;
     int num_notes_;
-    double amplitude_;
+    int volume_;
 
     std::string start_note_;
     note_mode_type note_mode_;
@@ -139,7 +140,7 @@ class settings {
       note_distance_ = DEFAULT_NOTE_DISTANCE;
       pause_time_ = DEFAULT_PAUSE_TIME;
       verbosity_level_ = verbosity_normal;
-      amplitude_ = DEFAULT_AMPLITUDE_INT / 100;
+      volume_ = DEFAULT_VOLUME_INT;
       note_mode_ = note_mode_list;
       num_notes_ = 0;
     }

@@ -1,3 +1,7 @@
+/*!
+\file
+\brief Based on settings, compute a sequence of frequencies.
+*/
 #ifndef NOTE_SEQUENCE_HPP_1mte9pqi
 #define NOTE_SEQUENCE_HPP_1mte9pqi
 

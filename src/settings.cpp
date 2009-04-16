@@ -39,8 +39,6 @@ void settings::print_version() {
 void settings::parse_args(int argc, char **argv) {
   namespace po = boost::program_options;
 
-  int amplitude = DEFAULT_AMPLITUDE_INT;
-
   po::options_description all_opts("Options");
   all_opts.add_options()
     ("help,h", "This message and quit.")
@@ -58,8 +56,8 @@ void settings::parse_args(int argc, char **argv) {
      "How many notes to play from --start with --distance.  Default: stop after one octave.")
     ("pause", po::value<int>(&pause_time_),
      "Milisecond pause time between notes.  Default: " DEFAULT_PAUSE_TIME_STR)
-    ("volume,a", po::value<int>(&amplitude),
-     "Amplitude number between 0 and 100.  Default: " DEFAULT_AMPLITUDE_STR)
+    ("volume,a", po::value<int>(&volume_),
+     "Amplitude number between 0 and 100.  Default: " DEFAULT_VOLUME_STR)
     ("rate", po::value<int>(&sample_rate_),
      "Sample rate.  Default: " DEFAULT_SAMPLE_RATE_STR)
     ("channels", po::value<int>(&channels_),
@@ -90,10 +88,12 @@ void settings::parse_args(int argc, char **argv) {
   num_notes_;
 
   if (vm.count("volume")) {
-    if (amplitude < 0 || amplitude > 100) {
+    if (volume_ < 0 || volume_ > 100) {
       // TODO: throw an error here
     }
-    amplitude_ = amplitude / 100;
+    else if (volume_ == 0) {
+      std::cout << "warning: volume is 0.  Are you sure?  :)" << std::endl;
+    }
   }
 
   if (vm.count("verbose")) {
