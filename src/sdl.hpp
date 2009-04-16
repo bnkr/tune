@@ -15,6 +15,10 @@
 #  include <SDL/SDL.h>
 #endif
 
+#ifdef __MINGW32__
+#undef main /* Prevents SDL from overriding main() - this might be a hack */
+#endif
+
 #include <cassert>
 #include <stdexcept>
 #include <ostream>
