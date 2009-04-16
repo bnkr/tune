@@ -189,14 +189,7 @@ int main(int argc, char **argv) {
     }
 
     if (set.verbosity_level() >= set.verbosity_verbose) {
-      if (set.note_mode() == settings::note_mode_list) {
-        std::cout << "Playing notes from a list: " << std::endl;
-        // TODO: print the list (and frequency conversions?)
-      }
-      else {
-        std::cout << "Playing notes based on a start note." << std::endl;
-        // and another from
-      }
+      set.dump_note_settings(std::cout) << std::endl;
     }
 
     // declare this quick because it does a lot of validation
@@ -243,7 +236,8 @@ int main(int argc, char **argv) {
     do {
       trc("begin loop");
       // note_seq::iterator i = note_seq.begin() ...
-      while (! note_seq.done()) {
+      do {
+        trc("get next freq.");
         double freq = note_seq.next_frequency(); // (or *i if I get that wokring)
         // can use iterator?
         trc("note " << freq << " for " << set.duration_ms() << "ms");
@@ -282,7 +276,10 @@ int main(int argc, char **argv) {
             }
           }
         }
-      }
+
+        trc("finished this note");
+      } while (! note_seq.done());
+      trc("finished this sequence");
     } while (set.loop());
 
 clean_exit:

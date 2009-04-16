@@ -23,8 +23,8 @@
 #define DEFAULT_CHANNELS_STR      "2"
 #define DEFAULT_SAMPLE_RATE       44100
 #define DEFAULT_SAMPLE_RATE_STR   "44100"
-#define DEFAULT_NOTE_DISTANCE     8
-#define DEFAULT_NOTE_DISTANCE_STR "8"
+#define DEFAULT_NOTE_DISTANCE     5
+#define DEFAULT_NOTE_DISTANCE_STR "5"
 #define DEFAULT_PAUSE_TIME        500
 #define DEFAULT_PAUSE_TIME_STR    "500"
 #define DEFAULT_VOLUME_INT        75
@@ -68,10 +68,14 @@ class settings {
 
     //! \name Regarding the start to distance, step num_steps mode
     //@{
+
+    //! \brief Textual representation of which note we start playing on.
     const std::string &start_note() const { return start_note_; }
-    //! \brief Distance in steps.
+    //! \brief Note that *both* this and num_notes() may be invalid.
+    const std::string &end_note() const { return end_note_; }
+    //! \brief Distance between notes in steps.
     int note_distance() const { return note_distance_; }
-    //! \brief How many increments of note_distance() to start_note() ?
+    //! \brief How many increments of note_distance() to start_note()?  -1 if not given.
     int num_notes() const { return num_notes_; }
     //@}
 
@@ -81,7 +85,6 @@ class settings {
     //! \brief How long to play each note for.  Can be \link forever \endlink.
     int duration_ms() const { return duration_; }
     bool loop() const { return flag(fl_loop); }
-
     //! \brief Pause between notes.
     int pause_ms() const { return pause_time_; }
     //@}
@@ -92,6 +95,11 @@ class settings {
     int channels() const { return channels_; }
     double amplitude() const { return volume_ / 100.0; }
     int volume() const { return volume_; }
+    //@}
+
+    //! \name Regarding technicalities of music.
+    //@{
+    double concert_pitch() const { return concert_pitch_; }
     //@}
 
     //! \name Program operations
@@ -110,6 +118,37 @@ class settings {
     static const int verbosity_verbose = 2;
 
     static const int forever = -1;
+
+    std::ostream &dump_note_settings(std::ostream &o) {
+      if (note_mode() == settings::note_mode_list) {
+        o << "Playing notes from a list: " << std::endl;
+        // TODO: print the list (and frequency conversions?)
+      }
+      else {
+        assert(note_mode() == settings::note_mode_start);
+        o << "Starting with: " << start_note() << std::endl;
+        o << "Incrementing by " << note_distance() << " half steps." << std::endl;
+
+        if (! end_note().empty()) {
+          o << "Ending with: " << end_note() << std::endl;
+        }
+        else if (num_notes() > 1) {
+          o << "Incrementing " << num_notes() << " times." << std::endl;
+        }
+        else {
+          o << "Incrementing until an octave is reached." << std::endl;
+        }
+      }
+
+      o << "Concert pitch is: " << concert_pitch() << "hz." << std::endl;
+      o << "Notes last for: " << duration_ms() << "ms." << std::endl;
+      o << "Pause for: " << pause_ms() << "ms after each note." << std::endl;
+      o << "Looping: " << loop() << std::endl;
+      o << "Amplitude is: " << amplitude();
+
+      return o;
+    }
+
 
   private:
     enum exit_code {
@@ -138,9 +177,11 @@ class settings {
     int pause_time_;
     int num_notes_;
     int volume_;
-    double frequency_offset_;
+    double concert_pitch_;
 
     std::string start_note_;
+    std::string end_note_;
+
     note_mode_type note_mode_;
 
     std::string dump_file_;
@@ -155,8 +196,8 @@ class settings {
       verbosity_level_ = verbosity_normal;
       volume_ = DEFAULT_VOLUME_INT;
       note_mode_ = note_mode_list;
-      num_notes_ = 0;
-      frequency_offset_ = 0;
+      num_notes_ = -1;
+      concert_pitch_ = 440.0;
     }
 
     void parse_args(int argc, char **argv);

@@ -46,18 +46,20 @@ void settings::parse_args(int argc, char **argv) {
     ("loop,l", "Loop playing.")
     ("time,t", po::value<int>(&duration_),
      "Time for each note in miliseconds.  Defaults: " DEFAULT_NOTE_DURATION_STR)
+    ("pause", po::value<int>(&pause_time_),
+     "Milisecond pause time between notes.  Default: " DEFAULT_PAUSE_TIME_STR)
     ("dump,D", po::value<std::string>(&dump_file_),
      "Dump raw samples to a file.")
     ("start,s", po::value<std::string>(&start_note_),
      "Note name or frequency to start with.")
-    ("offset", po::value<double>(&frequency_offset_),
-     "Frequency offset of concert pitch A.  (For `slightly out' tunings.)")
     ("distance,d", po::value<int>(&note_distance_),
      "Half notes between notes starting from -s, --start.  Default: " DEFAULT_NOTE_DISTANCE_STR)
+    ("end,e", po::value<std::string>(&end_note_),
+     "Note name or frequency to end on with.")
     ("number,n", po::value<int>(&num_notes_),
-     "How many notes to play from --start with --distance.  Default: stop after one octave.")
-    ("pause", po::value<int>(&pause_time_),
-     "Milisecond pause time between notes.  Default: " DEFAULT_PAUSE_TIME_STR)
+     "How many notes to play from --start with.  Default: stop after one octave.")
+    ("concert-pitch,p", po::value<double>(&concert_pitch_),
+     "Frequency of the base note that we work all other notes out from.  Default: 400hz (A).")
     ("volume,a", po::value<int>(&volume_),
      "Amplitude number between 0 and 100.  Default: " DEFAULT_VOLUME_STR)
     ("rate", po::value<int>(&sample_rate_),
@@ -109,12 +111,22 @@ void settings::parse_args(int argc, char **argv) {
   // also note_mode_list/note_mode_start.
 
   // if (vm.count("start") && there_are_notes_specified) {
-  //   error
+  //   throw std::runtime_error("--start and specifying notes conflict");
   // }
 
   if (vm.count("start")) {
-    // TODO: convert start_note_ to a frequency?!
-    start_note_;
+    note_mode_ = note_mode_start;
+    if (vm.count("number") && num_notes_ <= 0) {
+      throw std::runtime_error("value is less than 1 for --number");
+    }
+
+    if (note_distance_ == 0) {
+      std::cout << "warning: --distance is 0: the note won't change." << std::endl;
+    }
+
+    if (vm.count("number") && vm.count("end")) {
+      throw std::runtime_error("--number and --end conflict");
+    }
   }
   else {
     // validate notes list

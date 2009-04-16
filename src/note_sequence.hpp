@@ -12,6 +12,7 @@
 #include <cstring>
 
 #include <stdexcept>
+#include <memory>
 
 #ifndef trc
 #  define trc(x)
@@ -83,37 +84,116 @@ int parse_note(const char *note_str) {
   return name;
 }
 
-// TODO:
-//   there's a slight problem here: list mode obv. requires computing a list
-//   while note mode can be generated on the fly.  We're wasting a bit if we
-//   do both somehow...
+namespace detail {
+
+  //! \brief Abstract base for the implementation of a note sequence.
+  struct sequence_engine {
+    virtual ~sequence_engine() {}
+    virtual double next_frequency() = 0;
+    virtual bool done() = 0;
+  };
+
+  //! \brief Sequence based on a start, step, and stop.
+  class generated_sequence : public sequence_engine {
+    public:
+      //! \brief stop = -1 for never.  Step may be 0.
+      generated_sequence(double concert_pitch, int start_offset, int stop, int step)
+      : concert_pitch_(concert_pitch), start_(start_offset), offset_(start_offset), step_(step), stop_(stop) {
+        assert((start_ < stop_ && step_ >= 0) || (start_ > stop_ && step_ <= 0) || (start_ == stop_));
+      }
+
+      // TODO: no need for this to be virtual - just assign a bool in sequence_engine.
+      bool done() {
+        if (offset_ == stop_) {
+          trc("this is only one note: it's always done.");
+          return false;
+        }
+        else if (start_ < stop_) {
+          return offset_ <= stop_;
+        }
+        else {
+          return offset_ >= stop_;
+        }
+      }
+
+      double next_frequency() {
+        double x = std::pow(2, (offset_/12.0)) * concert_pitch_;
+        trc("we're on " << offset_);
+        offset_ += step_;
+        trc("increment to " << offset_);
+        return x;
+      }
+
+    private:
+      const double concert_pitch_;
+      const int start_;
+      int offset_;
+      int step_;
+      const int stop_;
+  };
+
+}
+
+
 //! \brief Sequence of note frequencies based on settings note_list() or start_note().
 //! This also does a lot of validation of settings which is left out of the settings
 //! class because it's techincal stuff to do with calculating the frequencies.
+// TODO:
+//   would it be faster to do a comparison each time frequencey is called instead of
+//   the virtaul function call?  Even using a switch might be nicer due to inlining...
+//   have to benchmark it.
+//
 class note_sequence {
   public:
     note_sequence(settings &set) {
       if (set.note_mode() == settings::note_mode_list) {
-        // generate a seq. from note_list()
+        throw std::logic_error("not implemented");
       }
       else {
         assert(set.note_mode() == settings::note_mode_start);
         trc("using a start note and distance");
+        int start_offset = parse_note(set.start_note().c_str());
+
+        int stop_offset;
+        if (! set.end_note().empty()) {
+          stop_offset = parse_note(set.end_note().c_str());
+        }
+        else if (set.num_notes() <= 0) {
+          stop_offset = start_offset + set.num_notes() * set.note_distance();
+        }
+        else {
+          stop_offset = start_offset + 12;
+        }
+
+        int step = set.note_distance();
+        if (start_offset > stop_offset && step > 0) {
+          std::cerr << "warning: making the step negative since the end note is lower than the start note." << std::endl;
+          step = -step;
+        }
+        else if (start_offset < stop_offset && step < 0) {
+          std::cerr << "warning: making the step positive since the end note is higher than the start note." << std::endl;
+          step = -step;
+        }
+
+        trc("start: " << start_offset);
+        trc("stop:  " << stop_offset);
+        trc("step:  " << step);
+
+        impl_.reset(
+          new detail::generated_sequence(
+            set.concert_pitch(), start_offset, stop_offset, step
+          )
+        );
+        trc("done");
+        assert(impl_.get());
       }
-
-      steps_away_from_a = parse_note(set.start_note().c_str());
-      trc(steps_away_from_a);
     }
 
-    bool done() { return false; }
-    double next_frequency() {
-      const double frequency_of_a = 440.0;
-      double x = pow(2, (steps_away_from_a/12.0)) * frequency_of_a;
-      steps_away_from_a += 5;
-      return x;
-    }
+    bool done() { return impl_->done(); }
+    double next_frequency() { return impl_->next_frequency(); }
 
-    int steps_away_from_a; // = 0;
+  private:
+    std::auto_ptr<detail::sequence_engine> impl_;
 };
 
 
