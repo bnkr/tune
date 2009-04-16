@@ -88,6 +88,9 @@ class queue_pusher {
 
     void *pop() {
       monitor_type m(sync_, pop_continue_predicate);
+
+      if (queue.data().empty()) return NULL;
+
       void *r = sync_.data().front();
       sync_.data().pop();
       // trc("pop finished: size = " << sync_.data().size());

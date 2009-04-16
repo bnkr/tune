@@ -11,8 +11,10 @@
 #include <string>
 #include <bitset>
 #include <stdexcept>
+#include <iostream>
 
 #include <cstdlib>
+#include <cassert>
 
 // so we can string it in the help text
 #define DEFAULT_NOTE_DURATION     2000

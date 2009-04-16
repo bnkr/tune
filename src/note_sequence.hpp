@@ -24,7 +24,6 @@ int parse_note(const char *note_str) {
   assert(s > 0);
 
   int name = note_str[0];
-  trc((char) name);
   if (name >= 'a' && name <= 'g') {
     name -= 0x20;
   }
@@ -33,7 +32,6 @@ int parse_note(const char *note_str) {
     // TODO: better exception
     throw std::runtime_error("bad note");
   }
-  trc((char) name);
 
   int dists[] = {
      0, // a

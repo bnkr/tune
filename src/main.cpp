@@ -88,10 +88,25 @@ void reader_callback(void *, uint8_t *stream, int length) {
   //
   //   If we could lib this up into a generic sync_container or something
   //   it would be really good.
+  // null buffer means it's empty
   void *buf = qp->pop();
   if (! buf) {
+    // trc("no data!");
     // rather messy.
-    if (quitting) terminated = false;
+
+    boost::mutex::scoped_lock lk(quit_mutex);
+    if (quitting) {
+      trc("notify quit");
+      terminated = true;
+      quit_cond.notify_one();
+      lk.unlock();
+      // avoids popping - it would prbably be better to cuause this thread to wait I
+      // guess?
+      std::memset(stream, 0, length);
+    }
+    else {
+      std::cerr << "warning: buffer underflow - computer to slow?!" << std::endl;
+    }
     return;
   }
 
@@ -151,6 +166,21 @@ class key_reader {
     }
 };
 
+#include <csignal>
+
+bool interrupt = false;
+
+void notify_interrupt(int) {
+  // TODO: timeout
+  if (interrupt) {
+    std::cerr << "error: double interrupt!  Aborting now..." << std::endl;
+    abort();
+  }
+
+  std::cout << "Interrupted.  Press again if it doesn't work." << std::endl;
+  interrupt = true;
+}
+
 int main(int argc, char **argv) {
   try {
     settings set(argc, argv);
@@ -186,6 +216,12 @@ int main(int argc, char **argv) {
       std::cerr << "warning: could not get the requested audio spec - parameters not supported?" << std::endl;
     }
 
+    // TODO:
+    //   could be nicer as a global which carries all the sync data - see sync_data.hpp
+    //   there are other ways it could be done..
+    queue_pusher<sync_queue_type> pusher(queue);
+    qp = &pusher;
+
     dev.unpause();
 
     trc("amp: " << set.amplitude());
@@ -202,12 +238,8 @@ int main(int argc, char **argv) {
 
     key_reader keys;
 
+    signal(SIGINT, notify_interrupt);
     void *samples = NULL;
-    // TODO:
-    //   could be nicer as a global which carries all the sync data - see sync_data.hpp
-    //   there are other ways it could be done..
-    queue_pusher<sync_queue_type> pusher(queue);
-    qp = &pusher;
     do {
       trc("begin loop");
       // note_seq::iterator i = note_seq.begin() ...
@@ -229,6 +261,10 @@ int main(int argc, char **argv) {
             pusher.flush_next_push();
             break;
           }
+          else if (interrupt) {
+            pusher.flush_next_push();
+            goto clean_exit;
+          }
         }
 
         if (set.pause_ms()) {
@@ -241,10 +277,16 @@ int main(int argc, char **argv) {
             if (keys.pressed()) {
               break;
             }
+            else if (interrupt) {
+              goto clean_exit;
+            }
           }
         }
       }
     } while (set.loop());
+
+clean_exit:
+    trc("clean exit");
 
     // final period
     samples = buffer.get_silence();
@@ -252,12 +294,16 @@ int main(int argc, char **argv) {
       pusher.push(samples);
     }
 
+    trc("lock");
+
     // TODO:
     //   Generalise this pattern as monitored_flag (monitored_flag.hpp).  (First I need
     //   the quit strategy in the SDL thread).  I will use the standard way first.
     boost::unique_lock<boost::mutex> lk(quit_mutex);
     quitting = true;
     quit_cond.notify_one();
+
+    trc("wait for thread to finish nicely");
 
     // while the sdl thread hasnt flipped it back again
     while (terminated == false) {
