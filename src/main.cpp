@@ -185,6 +185,7 @@ int main(int argc, char **argv) {
     void *samples = NULL;
     do {
       trc("begin loop");
+      // TODO: here I must reset the note_sequence somehow
       // note_seq::iterator i = note_seq.begin() ...
       while (! note_seq.done()) {
         trc("get next freq.");
