@@ -19,7 +19,11 @@ It returns the status code of the command which is run, or 255 if something
 didn't work.  Unusually, it also returns 255 for the case of -h since this is
 intended as a test driver so it's probably an error if that is ever recognised.
 
-Naturally, this program must be compiled for windows.
+Naturally, this program must be compiled for windows:
+
+  i586-mingw32msvc-gcc -o setenvpath.exe -Wall -Wextra -pedantic setenvpath.c
+
+You can use a -std argument, but then you must define WIN32 manually.
 */
 
 #include <string.h>
@@ -28,8 +32,15 @@ Naturally, this program must be compiled for windows.
 #include <errno.h>
 #include <assert.h>
 
-#if WIN32
+#ifdef WIN32
 #  include <windows.h>
+#endif
+
+/* Under some -std arguments it doesn't get defined, but windows always has it. */
+#ifdef __cplusplus
+extern "C" int putenv(const char *);
+#else
+extern int putenv(const char *);
 #endif
 
 #ifndef PROGNAME
@@ -45,7 +56,7 @@ void print_help() {
   );
 }
 
-// copy the current value of PATH (because that data can change elsewhere).
+/* copy the current value of PATH (because that data can change elsewhere). */
 char *get_path_copy() {
   char *old_path_copy = NULL;
   const char *old_path = getenv("PATH");
@@ -60,16 +71,16 @@ char *get_path_copy() {
   return old_path_copy;
 }
 
-// returns "PATH=%PATH%;" - you may append to it without adding ;.
+/* returns "PATH=%PATH%;" - you may append to it without adding ; */
 char *get_initial_putenv(const char *current_path) {
   char *ret = NULL;
   const char * const prefix = "PATH=";
   size_t total_len = strlen(prefix);
   if (current_path) {
     total_len += strlen(current_path);
-    total_len += 1; // for semic
+    total_len += 1; /* for semic */
   }
-  ret = (char *) malloc(total_len + 1); // for semic
+  ret = (char *) malloc(total_len + 1);
   assert(ret);
   ret[0] = '\0';
 
@@ -82,7 +93,7 @@ char *get_initial_putenv(const char *current_path) {
   return ret;
 }
 
-// call putenv on the expr PATH=whatever we build and check it worked
+/* call putenv on the expr PATH=whatever we build and check it worked */
 int update_environment(char *env_expr, const char *original_value, int verbose) {
   assert(env_expr);
   if (verbose) {
@@ -103,12 +114,13 @@ int update_environment(char *env_expr, const char *original_value, int verbose) 
   return 0;
 }
 
-// check it's a dir.
+/* check it's a dir 0 == success. */
 int validate_path(const char *p) {
-  // just so I can check it on unix
+  /* just so I can check it on unix */
 #if WIN32
+  DWORD ret;
   assert(p);
-  DWORD ret = GetFileAttributes(p);
+  ret = GetFileAttributes(p);
   if (ret == FILE_ATTRIBUTE_DIRECTORY) {
     return 0;
   }
@@ -121,10 +133,12 @@ int validate_path(const char *p) {
 #endif
 }
 
-// add an extra one for spaces
+/* add an extra one for spaces */
 size_t escaped_len(const char *v) {
+  size_t i, extra;
   assert(v);
-  size_t i = 0, extra = 0;
+  i = 0;
+  extra = 0;
   while (*v) {
     ++i;
     if (*v == ' ') extra = 2;
@@ -133,19 +147,22 @@ size_t escaped_len(const char *v) {
   return i + extra;
 }
 
-// join the args with "$arg1" "$arg2".  Almost guaranteed I missed some stuff that
-// should be escaped...meh.
+/*
+join the args with "$arg1" "$arg2".  Almost guaranteed I missed some stuff that
+should be escaped...meh.
+*/
 char *create_args(const char * const *args, int num) {
-  assert(args);
-  assert(num > 0);
   size_t total_len = 0;
   char *ret = NULL;
   size_t ret_i = 0;
   int i;
+
+  assert(args);
+  assert(num > 0);
   for (i = 0; i < num; ++i) {
     const char *arg = args[i];
     assert(arg);
-    total_len += strlen(arg) + 3; // space or the trailing null and two '
+    total_len += strlen(arg) + 3; /* space or the trailing null and two ' */
   }
   ret = (char *) malloc(total_len);
   assert(ret);
@@ -162,16 +179,23 @@ char *create_args(const char * const *args, int num) {
   }
   ret[ret_i-1] = '\0';
 
-  assert(strlen(ret) == total_len - 1); // because we included the null.
+  assert(strlen(ret) == total_len - 1); /* because we included the null. */
   assert(strlen(ret) == ret_i - 1);
   return ret;
 }
 
 int run_process(const char *cmd, char *args) {
+  size_t cmd_len, args_len;
+  int ret;
+  char *shell;
   WIN32_FIND_DATA fd;
-  HANDLE h = FindFirstFile(
-    cmd, // LPCTSTR lpFileName,
-    &fd  // LPWIN32_FIND_DATA lpFindFileData
+  HANDLE h;
+
+  assert(cmd);
+
+  h = FindFirstFile(
+    cmd, /* LPCTSTR lpFileName, */
+    &fd  /* LPWIN32_FIND_DATA lpFindFileData */
   );
 
   if (h == INVALID_HANDLE_VALUE) {
@@ -179,10 +203,9 @@ int run_process(const char *cmd, char *args) {
     return 255;
   }
 
-  assert(cmd);
-  size_t cmd_len = strlen(cmd);
-  size_t args_len = (args) ? strlen(args) + 1 : 0; // space between cmd and args.
-  char *shell = (char *)malloc(cmd_len + args_len + 1);
+  cmd_len = strlen(cmd);
+  args_len = (args) ? strlen(args) + 1 : 0; /* space between cmd and args. */
+  shell = (char *)malloc(cmd_len + args_len + 1);
   assert(shell);
   shell[0] = '\0';
   strcat(shell, cmd);
@@ -191,8 +214,7 @@ int run_process(const char *cmd, char *args) {
     strcat(shell, args);
   }
 
-  int ret = system(shell);
-
+  ret = system(shell);
   return ret;
 }
 
@@ -202,11 +224,15 @@ int main(const int argc, const char *const *const argv) {
   int args_start = 0;
   int exit_status = failure_code;
   char *old_path_copy = get_path_copy();
-  assert(old_path_copy);
   char *putenv_expression = NULL;
   char *command_line = NULL;
   const char *cmd = NULL;
   int i;
+  /* temporaries */
+  const char *path = NULL;
+  size_t total_len = 0;
+
+  assert(old_path_copy);
 
   for (i = 1; i < argc; ++i) {
     if (strcmp(argv[i], "-h") == 0) {
@@ -224,12 +250,12 @@ int main(const int argc, const char *const *const argv) {
         goto error_exit;
       }
 
-      const char *const path = argv[i];
+      path = argv[i];
       if (validate_path(path) != 0) {
         goto error_exit;
       }
 
-      size_t total_len = 0;
+      total_len = 0;
       if (putenv_expression == NULL) {
         putenv_expression = get_initial_putenv(old_path_copy);
         assert(putenv_expression);
