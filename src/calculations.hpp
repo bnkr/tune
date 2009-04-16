@@ -119,9 +119,19 @@ class sample_generator {
 
     //! \brief Return output samples until the time is fullfiled.
     void *get_samples() {
-      // trc("get a sample period.  Index = " << buffer_index_ << " / " << buffer_size_);
+      // trc("get samples: " << total_samples_);
 
       // TODO: different sized samples?
+
+      // TODO:
+      //   Somehow we need to wait until samp is `near' zero so there is no audio pop.
+      //   It might mean returning an entirely new buffer?  It means that samp needs to
+      //   be a member variable, then we do total_samples_ <= 0 && samp_ near zero.  so
+      //   total_samples_ needs to become signed but we need to be careful that it doesn't
+      //   reach less than zero after this function, otherwise get_silence will be broken.
+      //   Also we need to be careful about volume - if the volume is zero (or near zero)
+      //   then many samples will seem like they are the end.  That *should* be ok, but
+      //   it won't solve the popping problem.
 
       int16_t *samples = (int16_t *) buffer_;
       while (buffer_index_ < buffer_samples_) {
@@ -141,10 +151,9 @@ class sample_generator {
 
     //! \brief Return silence samples until the time is fullfiled.
     void *get_silence() {
-      // TODO: use the sdl audio silence value (not that it matters since we're doing it with bytes)
+      // TODO: use the sdl audio silence value
       const int16_t silence_value = 0;
 
-      // TODO: it's a recalculation to work out bytes here.
       assert(buffer_samples_ >= buffer_index_);
       const uint32_t available = buffer_samples_ - buffer_index_;
       const uint32_t silence_samples = std::min(available, total_samples_);
@@ -159,6 +168,7 @@ class sample_generator {
 
       int16_t *samples = (int16_t*) buffer_;
       void *start = samples + buffer_index_;
+      // TODO: won't work if samples isn't int16_t
       std::memset(start, silence_value, silence_bytes);
       total_samples_ -= silence_samples;
 

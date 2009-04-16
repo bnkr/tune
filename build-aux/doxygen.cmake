@@ -745,7 +745,7 @@ function(add_doxygen target_name template_file directives_list)
   if (DOXYGEN_CMAKE_VERBOSE)
     message(STATUS "add_doxygen(): generate latex: ${conf_GENERATE_LATEX}")
     message(STATUS "add_doxygen(): generate html:  ${conf_GENERATE_HTML}")
-    message(STATUS "add_doxygen(): generate html:  ${conf_GENERATE_MAN}")
+    message(STATUS "add_doxygen(): generate man:   ${conf_GENERATE_MAN}")
   endif()
 
   # TODO: add this lot to another function - much easier to read :)
@@ -761,6 +761,9 @@ function(add_doxygen target_name template_file directives_list)
   # main target always rebuild.  Normally it's not possible to have an always 
   # invalid target which a normal target depends on unless they are both top-
   # level targets
+  # TODO: 
+  #   mark this target phony.  It works fine, but maybe it will break
+  #   other generators.
   string(RANDOM LENGTH 32 rand)
   set(main_output  "${target_name}/${rand}")
   set(latex_output "${absolute_doxygen_path}/${conf_LATEX_OUTPUT}")

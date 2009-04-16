@@ -21,7 +21,9 @@ namespace {
 
 typedef traits::monitor_tuple_type sync_queue_type;
 sync_queue_type queue;
-// TODO: do something about  this global.
+// TODO:
+//   do something about this global.  It should be replaced with
+//   monitored flag at some later date.
 bool quitting = false;
 bool terminated = false;
 boost::mutex quit_mutex;
