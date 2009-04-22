@@ -59,13 +59,15 @@ void settings::parse_args(int argc, char **argv) {
     ("distance,d", po::value<int>(&note_distance_),
      "Half notes between notes starting from -s, --start.  Default: " DEFAULT_NOTE_DISTANCE_STR)
     ("end,e", po::value<std::string>(&end_note_),
-     "Note name or frequency to end on with.")
+     "Note name or frequency to end on with.  Default: as though --end ${start}+.")
     ("number,n", po::value<int>(&num_increments_),
-     "How many notes to play from --start with.  Default: keep going until an octave.")
+     "How many notes to play from --start with.  Default: as though --end ${start}+.")
     ("concert-pitch,p", po::value<double>(&concert_pitch_),
      "Frequency of the base note that we work all other notes out from.  Default: 440hz (A).")
     ("concert-pitch-note", po::value<std::string>(&root_note),
-     "Note name of the base note that we work all other notes out from (eg, aB to tune down half a step.  Default: A.")
+     "Note name of the base note that we work all other notes out from (eg, aB to tune "
+     "down half a step).  The corresponding note frequency is worked out using a concert "
+     "pitch of 440hz.")
     ("volume,a", po::value<int>(&volume_),
      "Amplitude number between 0 and 100.  Default: " DEFAULT_VOLUME_STR)
     ("rate", po::value<int>(&sample_rate_),
