@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
       return set.exit_status();
     }
 
-    if (set.verbosity_level() >= set.verbosity_verbose) {
+    if (set.should_display(msg_verbose)) {
       set.dump_note_settings(std::cout) << std::endl;
     }
 
@@ -150,12 +150,12 @@ int main(int argc, char **argv) {
     out_spec.frequency(set.sample_rate());
     out_spec.channels(set.channels());
     sdl::device dev(aud, out_spec);
-    if (set.verbosity_level() >= set.verbosity_verbose) {
+    if (set.should_display(msg_verbose)) {
       std::cout << "Audio spec:" << std::endl;
       dev.obtained().dump(std::cout, "  ") << std::endl;
     }
 
-    if (dev.obtained() != out_spec) {
+    if (dev.obtained() != out_spec && set.should_display(msg_normal)) {
       std::cerr << "warning: could not get the requested audio spec - parameters not supported?" << std::endl;
     }
 
@@ -165,21 +165,18 @@ int main(int argc, char **argv) {
     queue_pusher<sync_queue_type> pusher(queue);
     qp = &pusher;
 
-    dev.unpause();
-
-    trc("amp: " << set.amplitude());
-    trc("vol: " << set.volume());
-
     sine_calculation calc(dev.obtained().channels(), dev.obtained().frequency(), set.amplitude());
-
-    if (set.verbosity_level() >= set.verbosity_verbose) {
-      std::cout << "volume: " << set.volume() << std::endl;
-    }
 
     sample_generator buffer(calc, dev.obtained());
     sample_dumper dump_file(set.dump_to_file(), set.dump_file(), dev.obtained().buffer_size());
 
     key_reader keys;
+
+    // TODO:
+    //   ./tune -v --start a --end a --distance 0
+    //   loops forever; it should end after the first note.
+
+    dev.unpause();
 
     signal(SIGINT, notify_interrupt);
     void *samples = NULL;
@@ -190,8 +187,8 @@ int main(int argc, char **argv) {
       while (! note_seq.done()) {
         trc("get next freq.");
         double freq = note_seq.next_frequency(); // (or *i if I get that wokring)
-        // can use iterator?
         trc("note " << freq << " for " << set.duration_ms() << "ms");
+        // TODO: print out the note as a msg_normal.
         calc.reset_wave(freq);
         // TODO: this breaks when duration is forever.
         buffer.reset_time(set.duration_ms());
@@ -273,7 +270,7 @@ clean_exit:
   catch (sdl::error &e) {
     std::cerr << "Error initialising sdl: " << e.what() << std::endl;
   }
-  // TODO: be more specific
+  // TODO: be more specific - catch boost::po errors and settings_error
   catch (std::exception &e) {
     std::cerr << "Error parsing arguments: " << e.what() << std::endl;
   }

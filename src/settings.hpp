@@ -39,10 +39,19 @@ namespace boost {
 }
 
 //! \brief Thrown for any vailidation error.
+//TODO: add a string with the option.
 class invalid_setting : public std::runtime_error {
   public:
     invalid_setting(const std::string &m) : runtime_error(m) {}
 };
+
+typedef enum {
+  // a non-displayed message :)
+  msg_none = 0,
+  msg_normal = 1,
+  msg_verbose = 2
+} message_level_type;
+
 
 //! \brief Container for cli-data.
 class settings {
@@ -121,9 +130,14 @@ class settings {
     double concert_pitch() const { return concert_pitch_; }
     //@}
 
-    static const int verbosity_quiet = 0;
-    static const int verbosity_normal = 1;
-    static const int verbosity_verbose = 2;
+    //! \name Queries
+    //@{
+    bool should_display(message_level_type t) const { return verbosity_level() >= (int) t; }
+    //@}
+
+    static const int verbosity_quiet   = msg_none;
+    static const int verbosity_normal  = msg_normal;
+    static const int verbosity_verbose = msg_verbose;
 
     static const int forever = -1;
 

@@ -63,9 +63,9 @@ void settings::parse_args(int argc, char **argv) {
     ("number,n", po::value<int>(&num_increments_),
      "How many notes to play from --start with.  Default: keep going until an octave.")
     ("concert-pitch,p", po::value<double>(&concert_pitch_),
-     "Frequency of the base note that we work all other notes out from.  Default: 400hz (A).")
+     "Frequency of the base note that we work all other notes out from.  Default: 440hz (A).")
     ("concert-pitch-note", po::value<std::string>(&root_note),
-     "Note name of the base note that we work all other notes out from (eg, aB to tune down half a step.  Default: (A).")
+     "Note name of the base note that we work all other notes out from (eg, aB to tune down half a step.  Default: A.")
     ("volume,a", po::value<int>(&volume_),
      "Amplitude number between 0 and 100.  Default: " DEFAULT_VOLUME_STR)
     ("rate", po::value<int>(&sample_rate_),
@@ -146,8 +146,7 @@ void settings::parse_args(int argc, char **argv) {
   // }
 
   // TODO:
-  //   if not start and not notes specified, then start == a.  also need to
-  //   change the default duration to forever if that's the case.
+  //   if not start and not notes specified, then start == a.
   //
   // TODO: if no notes and no --start and no duration then duration == forever
   //
