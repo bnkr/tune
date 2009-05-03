@@ -9,13 +9,18 @@
 #include <cmath>
 #include <limits>
 
+#include <bdbg/trace/short_macros.hpp>
+
 #include "sdl.hpp"
 
 //! \brief Stateful calculation context.
 class sine_calculation {
   public:
-    sine_calculation(int channels, double output_frequency, double amplitude = 0.75)
-    : output_frequency_(output_frequency), amplitude_(amplitude), sine_pos_(0), sine_speed_(0) { }
+
+    //! \brief reset_wave() must be called after this to set the note.
+    sine_calculation(double output_frequency, double amplitude = 0.75)
+    : output_frequency_(output_frequency), note_frequency_(0),
+      amplitude_(amplitude), sine_pos_(0), sine_speed_(0) { }
 
     //! \brief Set sound properties and note properties; recalculate state.
     void reset(double output_frequency, double note_frequency, double amplitude) {

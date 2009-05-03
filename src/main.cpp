@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
     queue_pusher<sync_queue_type> pusher(queue);
     qp = &pusher;
 
-    sine_calculation calc(dev.obtained().channels(), dev.obtained().frequency(), set.amplitude());
+    sine_calculation calc(dev.obtained().frequency(), set.amplitude());
 
     sample_generator buffer(calc, dev.obtained());
     sample_dumper dump_file(set.dump_to_file(), set.dump_file(), dev.obtained().buffer_size());
