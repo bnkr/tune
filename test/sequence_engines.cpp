@@ -28,11 +28,16 @@ int main() {
     assert(count == 13);
   }
 
+  // TODO:
+  //   test generated sequence with start == end,
+
+  // TODO:
+  //   test generated seq. with step == 0
+
   {
     // detail::listed_sequence ls();
     // TODO: test this.
   }
-
 
   return EXIT_SUCCESS;
 }
