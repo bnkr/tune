@@ -1,7 +1,6 @@
 #include "../src/calculations.hpp"
 
 #include <cstdlib>
-#include <bdbg/trace/static_definitions.hpp>
 
 int main() {
   double frequency = 44100;
