@@ -6,6 +6,8 @@
 #ifndef NOTES_HPP_la1870xc
 #define NOTES_HPP_la1870xc
 
+#include <stdexcept>
+
 #include <cstring>
 #include <cassert>
 #include <cmath>
