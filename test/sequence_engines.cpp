@@ -34,6 +34,9 @@ int main() {
   // TODO:
   //   test generated seq. with step == 0
 
+  // TODO:
+  //   test generated sequence with a different concert pitch.
+
   {
     // detail::listed_sequence ls();
     // TODO: test this.

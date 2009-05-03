@@ -45,7 +45,34 @@ int main() {
   }
 
   // TODO:
-  //   Test note conversions (first need to implement them in settings).
+  //   Test the following:
+  //   - existing file for --dump
+  //   - wrong notes for the note list.
+  //   - for each verbosity level, test that messages of the type will display.
+  //
+  //   And that things are set:
+  //   - --amplitude
+  //   - --rate
+  //   - --channels
+  //   - --number
+  //   - --concert-pitch
+  //   - --loop
+  //   - --time
+  //   - --pause
+
+  // TODO:
+  //   Test note conversions (first need to implement them in settings):
+  //   - start note
+  //   - end note
+  //   - note list
+  //   - concert-pitch-note
+
+  // TODO:
+  //   Test that certain things are errors:
+  //   - --start and notes specified
+  //   - --end without --start.
+  //   - --start without --distance or --end
+  //   - --distance without --start
 
   return EXIT_SUCCESS;
 }

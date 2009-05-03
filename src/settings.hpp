@@ -5,6 +5,12 @@
 #ifndef SETTINGS_HPP_g0vr9k40
 #define SETTINGS_HPP_g0vr9k40
 
+#ifdef __GNUC__
+#  define tune_attribute_deprecated __attribute__((deprecated))
+#else
+#  define tune_attribute_deprecated
+#endif
+
 // TODO: manpage needs updating for all the new options, also give more examples:
 // - play a scale
 // - tune a guitar
@@ -74,7 +80,10 @@ class settings {
     //@{
     note_mode_type note_mode() const { return note_mode_; }
 
-    int verbosity_level() const { return verbosity_level_; }
+    //! \deprecated Use should_display().
+    //TODO: switch teh verbosity level to return one of message_level_type.
+    int verbosity_level() const tune_attribute_deprecated { return verbosity_level_; }
+    bool should_display(message_level_type t) const { return verbosity_level() >= (int) t; }
 
     bool exit() const { return exit_status_ != no_exit; }
     int exit_status() const { return (int) exit_status_; }
@@ -103,9 +112,9 @@ class settings {
     //@}
 
     //! \deprecated
-    int num_notes() const { return num_note_increments(); }
+    int num_notes() const tune_attribute_deprecated { return num_note_increments(); }
     //! \deprecated
-    int note_distance() const { return note_distance_; }
+    int note_distance() const tune_attribute_deprecated { return note_distance_; }
 
     //! \name Regarding the `playlist'
     //@{
@@ -132,7 +141,6 @@ class settings {
 
     //! \name Queries
     //@{
-    bool should_display(message_level_type t) const { return verbosity_level() >= (int) t; }
     //@}
 
     static const int verbosity_quiet   = msg_none;
@@ -141,7 +149,10 @@ class settings {
 
     static const int forever = -1;
 
-    std::ostream &dump_note_settings(std::ostream &o) {
+    //! \deprecated  Use dump().
+    std::ostream &dump_note_settings(std::ostream &o) tune_attribute_deprecated { return dump(o); }
+
+    std::ostream &dump(std::ostream &o) {
       if (note_mode() == settings::note_mode_list) {
         o << "Playing notes from a list: " << std::endl;
         // TODO: print the list (and frequency conversions?)
