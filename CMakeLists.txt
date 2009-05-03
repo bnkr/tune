@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 2.6)
 # For ease of use later
 set(PROJECT_NAME tune)
-set(PROJECT_VERSION "0.0")
+set(PROJECT_VERSION "0.0.0")
 project(${PROJECT_NAME})
 
 include("build-aux/doxygen.cmake")
@@ -32,18 +32,51 @@ configure_file("${CMAKE_SOURCE_DIR}/build-aux/tune_config.hpp.cmake" "${CONFIG_H
 ## Finding libraries ##
 #######################
 
-# find_library(SOME_LIB "some")
-# mark_as_advanced(SOME_LIB)
+# TODO:
+#   doc this function.
+#   Maybe it would be better a module bbuild?  Some other functions would be
+#   better in there too.
+macro(butil_find_lib)
+  butil_parse_args("VAR;NAMES" "REQUIRED" "" "${ARGV}")
+
+  if (NOT arg_VAR)
+    message(FATAL_ERROR "butil_find_lib(): VAR is required.")
+  endif()
+
+  if (NOT arg_NAMES)
+    set(arg_NAMES ${PA_OTHER})
+
+    if (NOT arg_NAMES)
+      message(FATAL_ERROR "butil_find_lib(): NAMES is required.")
+    endif()
+  endif()
+
+  foreach (butil_name ${arg_NAMES})
+    # TODO: implement arg_REQUIRED.
+    find_library(${arg_VAR} "${butil_name}")
+    mark_as_advanced(${arg_VAR})
+    if (${arg_VAR})
+      break()
+    endif()
+  endforeach()
+
+  if (arg_REQUIRED)
+    if (NOT ${arg_VAR})
+      message(FATAL_ERROR "butil_find_lib(): ${arg_NAMES} were not found.")
+    endif()
+  endif()
+endmacro()
+
 find_package(SDL REQUIRED)
-find_library(BOOST_PROGOPT_LIB "boost_program_options-mt")
-if (NOT BOOST_PROGOPT_LIB)
-  find_library(BOOST_PROGOPT_LIB "boost_program_options")
-endif()
-find_library(BOOST_THREAD_LIB "boost_thread-mt")
-if (NOT BOOST_THREAD_LIB)
-  find_library(BOOST_THREAD_LIB "boost_thread")
-endif()
-mark_as_advanced(BOOST_THREAD_LIB)
+
+butil_find_lib(
+  VAR BOOST_PROGOPT_LIB
+  NAMES "boost_program_options-mt" "boost_program_options"
+)
+butil_find_lib(
+  VAR BOOST_THREAD_LIB
+  NAMES "boost_thread-mt" "boost_thread"
+)
 
 ###########################
 ## Building normal stuff ##
