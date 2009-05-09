@@ -11,6 +11,8 @@
 #
 # butil_add_library - wrapper of add_library() and  properties.
 # butil_add_executable - wrapper of add_exeutable() and properties.
+#
+# butil_find_lib - search for libraries given a list of possible names.
 
 # TODO: add butil_check_arg stuff.
 
@@ -249,7 +251,20 @@
 #
 # Empty arguments cause an error - they should be specified as flags.
 #
-
+#########################
+# macro: butil_find_lib()
+#
+# Find a library given a list of possible names.
+#
+# butil_find_lib(
+#   VAR output
+#   NAMES name...
+#   [REQUIRED]
+# )
+#
+# Self-explanitory.
+#
+# NAMES is optional.
 
 # TODO: write examples of the ignore list thing.
 # TODO: a simple unit test for this would be useful.
@@ -1255,6 +1270,38 @@ macro(butil_auto_install)
         endif()
       endif()
     endforeach()
+  endif()
+endmacro()
+
+# TODO: probably better in a module called bbuild
+macro(butil_find_lib)
+  butil_parse_args("VAR;NAMES" "REQUIRED" "" "${ARGV}")
+
+  if (NOT arg_VAR)
+    message(FATAL_ERROR "butil_find_lib(): VAR is required.")
+  endif()
+
+  if (NOT arg_NAMES)
+    set(arg_NAMES ${PA_OTHER})
+
+    if (NOT arg_NAMES)
+      message(FATAL_ERROR "butil_find_lib(): NAMES is required.")
+    endif()
+  endif()
+
+  foreach (butil_name ${arg_NAMES})
+    # TODO: implement arg_REQUIRED.
+    find_library(${arg_VAR} "${butil_name}")
+    mark_as_advanced(${arg_VAR})
+    if (${arg_VAR})
+      break()
+    endif()
+  endforeach()
+
+  if (arg_REQUIRED)
+    if (NOT ${arg_VAR})
+      message(FATAL_ERROR "butil_find_lib(): ${arg_NAMES} were not found.")
+    endif()
   endif()
 endmacro()
 

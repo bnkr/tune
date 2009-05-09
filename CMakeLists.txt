@@ -32,41 +32,6 @@ configure_file("${CMAKE_SOURCE_DIR}/build-aux/tune_config.hpp.cmake" "${CONFIG_H
 ## Finding libraries ##
 #######################
 
-# TODO:
-#   doc this function.
-#   Maybe it would be better a module bbuild?  Some other functions would be
-#   better in there too.
-macro(butil_find_lib)
-  butil_parse_args("VAR;NAMES" "REQUIRED" "" "${ARGV}")
-
-  if (NOT arg_VAR)
-    message(FATAL_ERROR "butil_find_lib(): VAR is required.")
-  endif()
-
-  if (NOT arg_NAMES)
-    set(arg_NAMES ${PA_OTHER})
-
-    if (NOT arg_NAMES)
-      message(FATAL_ERROR "butil_find_lib(): NAMES is required.")
-    endif()
-  endif()
-
-  foreach (butil_name ${arg_NAMES})
-    # TODO: implement arg_REQUIRED.
-    find_library(${arg_VAR} "${butil_name}")
-    mark_as_advanced(${arg_VAR})
-    if (${arg_VAR})
-      break()
-    endif()
-  endforeach()
-
-  if (arg_REQUIRED)
-    if (NOT ${arg_VAR})
-      message(FATAL_ERROR "butil_find_lib(): ${arg_NAMES} were not found.")
-    endif()
-  endif()
-endmacro()
-
 find_package(SDL REQUIRED)
 
 butil_find_lib(
