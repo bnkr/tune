@@ -86,7 +86,8 @@ butil_auto_install(
   # INCLUDE_DIRS dir...
   NO_HEADERS # [HEADER_EXCLUDE pattern... | NO_HEADERS]
   # WINDOWS_LIBS library...]
-  # AUX_DLLS
+  HARDLINK_AUX_DLLS
+  BUILD_AUX_DLLS
 )
 
 #################

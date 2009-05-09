@@ -1237,17 +1237,36 @@ macro(butil_auto_install)
 
         if (arg_HARDLINK_AUX_DLLS)
           find_program(LN_EXE ln)
+          find_program(READLINK_EXE readlink)
+
+          mark_as_advanced(LN_EXE READLINK_EXE)
+
+          if (NOT READLINK_EXE)
+            message("butil_auto_install(): warning: readlink is not found.  Will copy windows dlls to bindir instead.")
+            set(arg_HARDLINK_AUX_DLLS FALSE)
+          endif()
 
           if (NOT LN_EXE)
             message("butil_auto_install(): warning: bin/ln not found.  Will copy windows dlls to bindir instead.")
+            set(arg_HARDLINK_AUX_DLLS FALSE)
           endif()
         endif()
 
-        if (arg_HARDLINK_AUX_DLLS AND LN_EXE)
-          # TODO:
-          #   dereferecnce ${winlib} if it's a symlink (then update the docs
-          #   to say we did it)
-          set(command "${LN_EXE}" "${winlib}" "${output}")
+        if (arg_HARDLINK_AUX_DLLS)
+          execute_process(
+            COMMAND "${READLINK_EXE}" "-f" "${winlib}"
+            OUTPUT_VARIABLE realpath
+            RESULT_VARIABLE res
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+          )
+
+          if (NOT res EQUAL 0)
+            message(FATAL_ERROR "butil_auto_install(): readlink failed with code: ${res}.")
+          endif()
+
+          set(winlib ${realpath})
+          # Don't rename it, or the link will be wrong.
+          set(command "${LN_EXE}" "${winlib}" "WORKING_DIRECTORY" "${CMAKE_BINARY_DIR}")
           set(action "Hard link")
         else()
           # This *does* dereference symlinks.
