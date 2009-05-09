@@ -65,19 +65,23 @@
 #
 # OUTPUTS is just an alias for GENERATE_x = YES where add_doxygen() is allowed
 # to override it if it cannot be build for some reason (this is a good idea).
-# Currently outputs may be: html, latex (gives you pdf), and man.  It does
-# not accept things which are not directly implemented by add_doxygen, since
-# most GENERATE_x require some external programs.
 #
-# Currently it may be html, latex, or man.  Each of these outputs will be
-# forced to "yes" or "no" depending on OUTPUT; again they may be overridden
-# by OVERRIDES or by a missing dependency.
+# Currently outputs may be:
+# - html
+# - latex (gives you pdf)
+# - man (doesn't actually install yet).
+#
+# OUTPUTS does not accept things which are not directly implemented by
+# add_doxygen() since most GENERATE_x require some external programs which must
+# be checked for.
+#
+# Warning: add_doxygen() will write an error message if one of the OUTPUTs
+# was turned off because a dependency was missing *however* if you later turn
+# it back on in OVERRIDES the message will be invalid.  Therefore it is a *bad
+# idea* to put GENERATE_x in the overrides (unless x is not supported).
 #
 # The special keyword "none" can be used to tell add_doxygen to generate no
 # targets and (crucially) to force then GENERATE_x args to NO.
-#
-# NOTE: currently man is not installable because doxygen makes a huge messy
-# directory full of pages and they need some love.
 #
 # If you do not supply OUTPUT, then GENERATE_x will not be forced - it is
 # left to the doxyfile to decide.  Generally this is more difficult to manage,
@@ -604,12 +608,16 @@ function(add_doxygen target_name template_file directives_list)
   # This allows the user to set HAVE_DOT
   if (NOT DOXYGEN_DOT_PATH)
     list(APPEND extra_force "HAVE_DOT")
+    if (conf_HAVE_DOT)
+      message("add_doxygen(): ${target_name}: warning: HAVE_DOT was on but no dot exe could be found.  HAVE_DOT will be forced off.")
+    endif()
     add_doxygen_override_var(HAVE_DOT  "NO")
   else()
     # Actually this is usually just /usr/bin
     add_doxygen_override_var(DOT_PATH "${DOXYGEN_DOT_PATH}")
   endif()
 
+  set(original_cmd_conf "${conf_LATEX_CMD_NAME}")
   if (LATEX_COMPILER AND PDFLATEX_COMPILER)
     # We still need to force PDFLATEX later or the cmd name will be wrong.
     if (conf_USE_PDFLATEX OR NOT DEFINED conf_USE_PDFLATEX OR conf_USE_PDFLATEX STREQUAL "")
@@ -627,10 +635,16 @@ function(add_doxygen target_name template_file directives_list)
     add_doxygen_override_var(LATEX_CMD_NAME  "${LATEX_COMPILER}")
   else()
     if (conf_GENERATE_LATEX)
-      message(STATUS "add_doxygen(): error: no LaTeX compilers - LaTeX will be overridden.")
+      message("add_doxygen(): ${target_name}: error: LaTeX was on but no LaTeX compilers could be found.  LaTeX will be forced off.")
     endif()
     add_doxygen_override_var(GENERATE_LATEX  "NO")
     list(APPEND extra_force "GENERATE_LATEX")
+  endif()
+
+  if (NOT original_cmd_conf STREQUAL "${conf_LATEX_CMD_NAME}")
+    message(STATUS "add_doxygen(): ${target_name}: automatically selected ${conf_LATEX_CMD_NAME} to build LaTeX.")
+    message(STATUS "               Set the doxyfile variables LATEX_COMPILER and/or PDFLATEX_COMPILER and")
+    message(STATUS "               USE_PDFLATEX to override.")
   endif()
 
   # This bit is interesting because it implies that the template file might be allowed
@@ -639,7 +653,7 @@ function(add_doxygen target_name template_file directives_list)
     add_doxygen_override_var(MAKEINDEX_CMD_NAME "${MAKEINDEX_COMPILER}")
   else()
     if (conf_GENERATE_LATEX)
-      message(STATUS "add_doxygen(): error: no makeindex compiler - LaTeX will be overridden.")
+      message("add_doxygen(): ${target_name}: warning: LaTeX was on but no makeindex could be found.  LaTeX will be forced off.")
     endif()
     add_doxygen_override_var(GENERATE_LATEX  "NO")
     list(APPEND extra_force "GENERATE_LATEX")
@@ -692,7 +706,7 @@ function(add_doxygen target_name template_file directives_list)
     endforeach()
 
     if (DOXYGEN_CMAKE_VERBOSE)
-      message(STATUS "add_doxygen(): input forced as: ${conf_INPUT}")
+      message(STATUS "add_doxygen(): input from INPUT argument: ${conf_INPUT}")
     endif()
 
     add_doxygen_override_var(INPUT "${input_over}")

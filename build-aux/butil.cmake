@@ -43,7 +43,8 @@
 #   [INCLUDE_DIRS dir...]
 #   [HEADER_EXCLUDE pattern... | NO_HEADERS]
 #   [WINDOWS_LIBS library...]
-#   [AUX_DLLS]
+#   [BUILD_AUX_DLLS]
+#   [HARDLINK_AUX_DLLS]
 # )
 #
 # This function uses some introspection to automatically generate install rules
@@ -82,10 +83,16 @@
 #
 # WINDOWS_LIBS is a specific list of dlls to install on windows (also they
 # get put in binary packages).  If this is specified then build-aux isn't
-# searched for dlls.
+# searched for dlls.  These libs will be copied into the binary directory so
+# that they can be symlinks but we can still install them.
 #
-# AUX_DLLS - if present, then build-aux is searched for dlls regardless of
-# whether WINDOWS_LIBS is specified.
+# BUILD_AUX_DLLS - if present, then build-aux/ is searched for dlls regardless
+# of whether WINDOWS_LIBS is specified.
+#
+# HARDLINK_AUX_DLLS - try to use ln to put the dlls into the binary dir isntead
+# of doing a copy.  Note that this only works if the target dll is *not* a
+# symlink.  Otherwise you hardlink to the symlink and it doesn't install
+# properly.
 #
 ############################
 # MACRO: butil_cpack_setup()
@@ -265,6 +272,7 @@
 # Self-explanitory.
 #
 # NAMES is optional.
+
 
 # TODO: write examples of the ignore list thing.
 # TODO: a simple unit test for this would be useful.
@@ -464,6 +472,16 @@ endmacro()
 
 # private tidyness function for making deb.  Completely reliant on being called from
 # butil_cpack_setup.
+#
+# TODO:
+#   This function could be seperate so we can make multiple packages.  Really
+#   tricky because cpacke_setup already sets a whole heap of stuff that this
+#   function really needs.  Maybe we add SETUP_DEB_ARGS_VAR?
+#
+# TODO:
+#   add option: DEB_PRUNE_DEPENDS to get rid of packages that you know you
+#   shouldn't depend on (eg libc-i686).  Or better find a way to automatically
+#   remove such libs; they are in /usr/lib/cmov/$arch/.
 macro(butil_cpack_setup_deb)
   if (arg_DEB_ARCH)
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE ${arg_DEB_ARCH})
@@ -497,6 +515,12 @@ macro(butil_cpack_setup_deb)
 
   # Cpack doesn't do this automatically for some reason.  The package is not
   # installable unless you do.
+  # TODO:
+  #   This is wrong - the first line is a 60chr max `purpose' like description.
+  #   The rest is the readme.  Implies we should make a arg_PURPOSE, arg_HEADER.
+  #   or something...
+  # TODO:
+  #   also we need to wordwrap the description at 80ch - the indent.
   string(STRIP "${CPACK_DEBIAN_PACKAGE_DESCRIPTION}" temp)
   string(REPLACE "\r\n\r\n" "\n" temp "${temp}")
   string(REPLACE "\n\n" "\n.\n" temp "${temp}")
@@ -1043,11 +1067,12 @@ macro(butil_auto_install)
 
   butil_parse_args(
     "BINARIES_VAR;RUNNABLES_VAR;BINS;LIBS;HEADER_EXCLUDE;WINDOWS_LIBS;INCLUDE_DIRS;EXECUTABLES;RUNNABLES;TARGETS"
-    "NO_HEADERS;AUX_DLLS"
+    "NO_HEADERS;AUX_DLLS;BUILD_AUX_DLLS;HARDLINK_AUX_DLLS"
     ""
     "${ARGV}"
   )
 
+  butil_warn_deprecated(AUX_DLLS BUILD_AUX_DLLS TRUE)
   butil_warn_deprecated(BINS TARGETS TRUE)
   butil_warn_deprecated(EXECUTABLES TARGETS TRUE)
   butil_warn_deprecated(LIBS TARGETS TRUE)
@@ -1160,36 +1185,102 @@ macro(butil_auto_install)
     endforeach()
   endif()
 
-  # Search build aux an use WINDOWS_LIBS if on win32.
+  # Search build aux and use WINDOWS_LIBS if on win32.
   if (WIN32)
     # TODO:
-    #   can we get it from LINK_INTERFACE_LIBRARIES property?  Or at least say
-    #   that there is some inconsistancy between them, eg different numbers.
-    #
-    #   Also, really we are going to have problems becuase make install doesn't
-    #   actually install Dlls if they're symlinks.
-    #
-    #   So basically my strategy is wrong.  I need one or all of:
-    #   - install from non-symlink
-    #   - supply a list of dlls
-    #   - find dlls automatically based on build-aux
-    #   - find dlls automatically based on link properties
-    #
-    #  It would be a good idea to run all the installables as unit tests, just to
-    #  see if they don't have dll errors on windows!
-    if (arg_AUX_DLLS OR NOT arg_WINDOWS_LIBS)
+    #   finding libraries:
+    #   - for each program use i586-mingw-objdump -p $prog | grep 'DLL Name'.
+    #     - has too many, eg mscvrt.dll.
+    #   - LINK_INTERFACE_LIBRARIES property
+    #     - not sure.
+
+    if (arg_BUILD_AUX_DLLS OR NOT arg_WINDOWS_LIBS)
       file(GLOB extra_libs "${CMAKE_SOURCE_DIR}/build-aux/*.dll")
       if (extra_libs)
         list(APPEND arg_WINDOWS_LIBS ${extra_libs})
       endif()
     endif()
+
+    if (NOT arg_WINDOWS_LIBS)
+      if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        message("butil_auto_install(): no windows binary dlls have been given to install")
+      endif()
+    else()
+
+      set(names)
+      set(winlib)
+      foreach(winlib ${arg_WINDOWS_LIBS})
+        get_filename_component(winlib "${winlib}" NAME)
+        list(APPEND names ${winlib})
+      endforeach()
+      butil_join(OUTPUT_VAR out LIST_VAR names)
+      message(STATUS "butil_auto_install(): will use dlls: ${out}")
+
+      set(names)
+      set(out)
+
+      # There's no way to check from within cmake!
+      if (arg_HARDLINK_AUX_DLLS)
+        if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+          message(STATUS "butil_auto_install(): notice: hardlinking dlls only works if the target is NOT a symlink!")
+        endif()
+      endif()
+
+      set(depends "DEPENDS")
+      foreach(winlib ${arg_WINDOWS_LIBS})
+        if (NOT EXISTS "${winlib}")
+          message(FATAL_ERROR "butil_auto_install(): specified windows lib ${winlib} does not exist.")
+        endif()
+
+        get_filename_component(basename "${winlib}" NAME)
+        set(output "${CMAKE_BINARY_DIR}/${basename}")
+
+        if (arg_HARDLINK_AUX_DLLS)
+          find_program(LN_EXE ln)
+
+          if (NOT LN_EXE)
+            message("butil_auto_install(): warning: bin/ln not found.  Will copy windows dlls to bindir instead.")
+          endif()
+        endif()
+
+        if (arg_HARDLINK_AUX_DLLS AND LN_EXE)
+          # TODO:
+          #   dereferecnce ${winlib} if it's a symlink (then update the docs
+          #   to say we did it)
+          set(command "${LN_EXE}" "${winlib}" "${output}")
+          set(action "Hard link")
+        else()
+          # This *does* dereference symlinks.
+          set(command "${CMAKE_COMMAND}" -E copy_if_different "${winlib}" "${CMAKE_BINARY_DIR}")
+          set(action "Copy")
+        endif()
+
+        add_custom_command(
+          OUTPUT  "${output}"
+          DEPENDS "${winlib}"
+          COMMAND ${command}
+          COMMENT "${action} ${basename} to the binary dir."
+          VERBATIM
+        )
+
+        list(APPEND depends "${output}")
+
+        install(
+          FILES "${output}"
+          DESTINATION "${BINDIR}"
+        )
+
+      endforeach()
+
+      add_custom_target(update_windows_dlls ALL ${depends})
+    endif()
   else()
     set(arg_WINDOWS_LIBS)
   endif()
 
-  if (arg_TARGETS OR arg_WINDOWS_LIBS)
+  if (arg_TARGETS)
     install(
-      TARGETS ${arg_TARGETS} ${arg_WINDOWS_LIBS}
+      TARGETS ${arg_TARGETS}
       RUNTIME DESTINATION "${BINDIR}"
       ARCHIVE DESTINATION "${ARCHIVEDIR}"
       LIBRARY DESTINATION "${LIBDIR}"
@@ -1304,4 +1395,5 @@ macro(butil_find_lib)
     endif()
   endif()
 endmacro()
+
 

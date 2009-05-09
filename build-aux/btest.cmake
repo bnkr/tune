@@ -168,6 +168,10 @@ function(btest_add)
 
   set(test_name "test_${name}")
   # We rely that empty variables decay to nothing and that lists are expanded.
+  # TODO:
+  #   There is a slight hassle here.  If we want to link to a lib we just
+  #   generated, there is no way to supply the linkdir just for only this
+  #   function.
   add_test(
     ${test_name}
     ${BTEST_EMULATOR_PF} ${name}${CMAKE_EXECUTABLE_SUFFIX} ${arg_ARGS}
