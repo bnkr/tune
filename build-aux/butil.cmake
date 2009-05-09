@@ -1232,9 +1232,6 @@ macro(butil_auto_install)
           message(FATAL_ERROR "butil_auto_install(): specified windows lib ${winlib} does not exist.")
         endif()
 
-        get_filename_component(basename "${winlib}" NAME)
-        set(output "${CMAKE_BINARY_DIR}/${basename}")
-
         if (arg_HARDLINK_AUX_DLLS)
           find_program(LN_EXE ln)
           find_program(READLINK_EXE readlink)
@@ -1242,7 +1239,6 @@ macro(butil_auto_install)
           mark_as_advanced(LN_EXE READLINK_EXE)
 
           if (NOT READLINK_EXE)
-            message("butil_auto_install(): warning: readlink is not found.  Will copy windows dlls to bindir instead.")
             set(arg_HARDLINK_AUX_DLLS FALSE)
           endif()
 
@@ -1252,7 +1248,8 @@ macro(butil_auto_install)
           endif()
         endif()
 
-        if (arg_HARDLINK_AUX_DLLS)
+        # Always readlink if we can.  That way the names are right.
+        if (READLINK_EXE)
           execute_process(
             COMMAND "${READLINK_EXE}" "-f" "${winlib}"
             OUTPUT_VARIABLE realpath
@@ -1265,11 +1262,21 @@ macro(butil_auto_install)
           endif()
 
           set(winlib ${realpath})
+        else()
+          message("butil_auto_install(): warning: readlink is not found.  If DLLS are symlinks, then packages might contain the wrong DLLname!")
+        endif()
+
+        # Calculate this here so that we get the right dll name if the cross
+        # compile environment is full of symlinks :)
+        get_filename_component(basename "${winlib}" NAME)
+        set(output "${CMAKE_BINARY_DIR}/${basename}")
+
+        if (arg_HARDLINK_AUX_DLLS)
           # Don't rename it, or the link will be wrong.
-          set(command "${LN_EXE}" "${winlib}" "WORKING_DIRECTORY" "${CMAKE_BINARY_DIR}")
+          set(command "${LN_EXE}" "${winlib}")
           set(action "Hard link")
         else()
-          # This *does* dereference symlinks.
+          # This *does* dereference symlinks however the
           set(command "${CMAKE_COMMAND}" -E copy_if_different "${winlib}" "${CMAKE_BINARY_DIR}")
           set(action "Copy")
         endif()
@@ -1278,6 +1285,7 @@ macro(butil_auto_install)
           OUTPUT  "${output}"
           DEPENDS "${winlib}"
           COMMAND ${command}
+          WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
           COMMENT "${action} ${basename} to the binary dir."
           VERBATIM
         )
