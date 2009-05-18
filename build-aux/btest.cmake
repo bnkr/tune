@@ -116,6 +116,7 @@ find_program(RUBY_EXE ruby)
 if (NOT RUBY_EXE)
   find_program(RUBY_EXE ruby1.8)
 endif()
+mark_as_advanced(RUBY_EXE)
 
 # Basic add of a test.
 function(btest_add)

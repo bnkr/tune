@@ -29,7 +29,9 @@ of it is not expected.
     compiling.
 11. Package Layout
     Specific information about the layout conventions used in my packages.
-10. Generic Help
+12. Distributors
+    Hints for distributors.
+13. Generic Help
     Generic CMake help resources and information.
 
 == Pre-Build ==
@@ -44,7 +46,7 @@ You will need to know:
 - which compile flags will you build with.
 - whether you want debug symbols or not.
 - install locations.
-- what compile toolchain you are using (if it is different from what can be
+- what compile toolchain you are using if it is different from what can be
   found in your path.
 
 == Initialisation ==
@@ -179,8 +181,8 @@ In the case of HAVE_x values, it will either require an addition to the *FLAGS
 variables to add an include directory, or to patch the source file which looks
 for the missing header.
 
-If you would like to see what is going on internally, grep for 'option' for
-the boolean WANTs and CACHE for the string-like variables.
+If you would like to see what is going on internally, grep the build scripts 
+for 'option(' for the boolean WANTs and 'CACHE' for the string-like variables.
 
 CMake simply initialises a cache when you first run it; the variables are set
 and then are never changed unless the user says so.  Therefore, if you upgrade
@@ -211,7 +213,7 @@ are built using the generator target `package' and are activated based on the
 variables CPACK_<BINARY|SOURCE>_<type>.
 
 Using `make package_source' for a source tarball is also available, but this is
-a poor substitute for autotool's make distcheck and is not recommended unless
+a poor substitute for autotools' make distcheck and is not recommended unless
 you heavily script it; for example, it will simply tar the entire source
 directory, which necessitates that you somehow create a `clean' source tree to
 make the package.
@@ -241,15 +243,14 @@ You must *initialise* the cmake cache with:
 
   cmake -DCMAKE_TOOLCHAIN_FILE=whatever path/to/srcdir/
 
-CMake's implementation prevents the compiler cannot be changed retroactively at
-this time.
+CMake's implementation prevents the compiler from being changed retroactively 
+at this time.
 
 Note that the toolchain file is just a collection of set() commands which
 overwrite the various variables.  Therefore you may also define locations of
-libraries and programs in this file, though it is not explicitly mentioned that
-this is OK.  Some library parts of cmake which do not anticipate this might
-overwrite some variables, however this seems to be very rare.
-
+libraries and programs in this file, though it is not explicitly documented 
+that this is OK.  Some library parts of cmake which do not anticipate this 
+pattern might overwrite some variables, however it seems to be very rare.
 The toolchain file can be used as a persistent set of defaults for all your
 cmake builds in this way.
 
@@ -271,25 +272,27 @@ The following are relevant variables to set:
 
 - CMAKE_FIND_ROOT_PATH_MODE_<thing> where <thing> is one of PROGRAM, LIBRARY,
   or INCLUDE.  Set to ONLY, NEVER, or BOTH to search for <thing> using the
-  CMAKE_ROOT_PATH_LIST, the host environment, or the both respectively.
+  CMAKE_FIND_ROOT_PATH list, the host environment, or both respectively.
 
 == Package Layout ==
 
 Just in case things go really badly :)
 
 - COPYING - license.
-- README - general description of the package.
+- README - quick introduction to the packge.
 - README.* - description of some specific documentation; usually related to
   installation or configuration.  I prefer manpages for runtime things.
 - INSTALL* - this file, and any other specific information.
-- CMakeLists.txt - main build system file.
+- CMakeLists.txt - main build system file.  Usually all installable targets are
+  built using this file.
 - Doxyfile.default - a partially configured doxygen configuration.  The build
   system overrides and/or adds variables to this to get the correct output.
 - examples/ - code used in documented examples.  Note that not all of these
   are directly buildable; they are intended to be used by doxygen.  If they
   are intended as independent examples, then they will have a comment with
-  how to compile them at the top and will be installed as part of the
-  documentation.
+  how to compile them at the top and will be installed separately as part of 
+  the documentation.
+- share/ - architecture independent data which will be installed.
 - doc/ - all documentation.
 - doc/man - usually uncompressed *roff text, but sometimes things to be
   processed to turn into *roff text.
@@ -298,8 +301,11 @@ Just in case things go really badly :)
 - src/ - for executables and libraries.  The main source file normally matches
   main.* for an executable, and lib*.cpp for a library.
 - build-aux/ - things strictly used for building and testing.
-- include/ - mirror of the main include directory.
-- test/ - unit tests.
+- build-aux/description.txt - general description of the package.
+- include/ - mirror of the main include directory which we will install.
+- external/ - bundled libraries.  Usually there are just some more include/ 
+  dirs in here.
+- test/ - unit tests.  There's usually a README to explain these.
 
 In the binary directory:
 
@@ -309,6 +315,23 @@ In the binary directory:
   This is not always present.
 - doxygen/ - usually the name I give for generated documentation when making a
   source package, this output is used directly for srcdir/doc/.
+
+== Distributing ==
+
+My build system is weighted towards making it easy to compile rather than easy 
+to distribute, so here are some hints to help:
+
+- the main license is always in COPYING, but some files have additional info.
+- I pre-process man pages quite often.
+- setting build type to Debug will spew lots of status messages from my build
+  scripts.
+- you do not need to clean the build system when building multiple
+  configurations (except when changing the compiler) so you can save some time 
+  if you are making a split package.
+- doxygen is built with virtually everything turned on (I am a glutton for
+  pretty pictures ^^) . You might want to make a different doxyfile.  HAVE_DOT
+  is a good one to turn off.
+- using `make package' will be hard work, sorry :)
 
 == Generic Help ==
 
