@@ -1,6 +1,24 @@
-Tune is a simple command-line tool for generating sine waves of a given note
-or frequency it uses SDL to output and can dump the raw samples to a file.  
-Not much more to say :)
+Introduction
+------------
+
+This program will simply output a sine wave of the desired parameters.  It can 
+use SDL to output to your sound card, or dump to a file.
+
+See the manpage for full details.
+
+Quick Overview
+--------------
+
+Some examples:
+
+  # Play e, e#, f
+  tune --start e --end f --loop
+  # Play e, f, g, a'.
+  tune --start e --number 4 --step 2
+  # Play starting at A, one octave up from concert pitch.
+  tune --start a+
+  # Play a, b, c
+  tune --loop a b c 
 
 Convert raw samples like:
 
@@ -9,3 +27,4 @@ Convert raw samples like:
 And encode them with ffmpeg:
 
   ffmpeg -f u16le -acodec pcm_s16le -i sinewave.raw -acodec pcm_s16le -ac 1 output.wav
+
