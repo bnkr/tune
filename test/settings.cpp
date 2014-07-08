@@ -25,8 +25,7 @@ int main() {
       settings s(2, (char **) argv);
       reached = true;
     }
-    catch (boost::program_options::unknown_option &) {
-    }
+    catch (boost::program_options::unknown_option &) { }
 
     assert(! reached);
   }

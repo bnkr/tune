@@ -1,6 +1,51 @@
 /*!
+\defgroup grp_sdl SDL Wrapper
+
+\section s_sdl_intro Introduction
+
+Wrapper of the simple direct media layer's audio component.  Not much more
+to say.
+
+Here is an example:
+
+\code
+void output_audio(void*, uint8_t *dest, int len) {
+  std::memcpy(dest, pop_correct_sized_period(), len);
+}
+
+try {
+  // initialise the library.
+  sdl::audio aud;
+  // initialise the device with a requested spec
+  sdl::audio_spec request(&output_audio);
+  request.channels(1).frequency(44100);
+  sdl::device dev(aud, request);
+
+  if (request != dev.obtained()) {
+    // sometimes it's ok.
+  }
+
+  set_generation_parameters(dev.obtained());
+
+  // start the output_audio thread
+  dev.unpause();
+
+  while (true) {
+    generate_and_push_correct_sized_period();
+  }
+}
+catch (sdl::error &e) {
+}
+
+\endcode
+*/
+
+
+/*!
 \file
+\ingroup grp_sdl
 \brief Basis for SDL library
+
 */
 
 #ifndef SDL_HPP_uyqa3zsm
@@ -35,8 +80,12 @@ http://www.libsdl.org/cgi/docwiki.cgi/Audio_Examples
 SDL_MixAudio - Mixes audio data
 */
 
+
+//! \ingroup grp_sdl
+//! All parts of sdl.
 namespace sdl {
 
+//! \ingroup grp_sdl
 //! \brief Convenience base for all errors; what() is SDL_GetError unless specified in ctor
 struct error : public std::runtime_error {
   error(const char *e = NULL) : runtime_error(((e == NULL) ? SDL_GetError() : e)) {}
@@ -45,16 +94,19 @@ struct error : public std::runtime_error {
 //!\deprecated Use the type directly
 typedef error sdl_error;
 
+//! \ingroup grp_sdl
 //! \brief SDL_Init failure.
 struct init_error : public error {
   init_error(const char *e = NULL) : error(e) {}
 };
 
+//! \ingroup grp_sdl
 //! \brief SDL_OpenAudio failure.
 struct open_error : public error {
   open_error(const char *e = NULL) : error(e) {}
 };
 
+//! \ingroup grp_sdl
 //! \brief RAII object for SDL_Init and SDL_quit and interface for static audio stuff.
 class audio {
   public:
@@ -91,6 +143,7 @@ class audio {
 };
 
 
+//! \ingroup grp_sdl
 //! \brief C++ wrapper over SDL_AudioSpec.
 class audio_spec {
   friend class device_base;
@@ -245,6 +298,7 @@ class device_base {
     }
 };
 
+//! \ingroup grp_sdl
 //! \brief Open/close the audio device; don't store any info.
 class light_device : public device_base {
   public:
@@ -271,6 +325,7 @@ class light_device : public device_base {
     }
 };
 
+//! \ingroup grp_sdl
 //! \brief Open the audio output; stores properties of what we opened.
 class device : public device_base {
   public:
@@ -295,6 +350,7 @@ class device : public device_base {
     audio_spec obtained_;
 };
 
+//! \ingroup grp_sdl
 //! \brief Prevent the callback function from being called.
 class audio_lock_guard {
   public:
