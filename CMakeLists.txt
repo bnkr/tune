@@ -7,6 +7,8 @@ set(PROJECT_NAME tune)
 set(PROJECT_VERSION "0.0.0")
 project(${PROJECT_NAME})
 
+include_directories("${CMAKE_SOURCE_DIR}/include")
+
 ####################################################
 ## Checking for required headers; making config.h ##
 ####################################################
@@ -25,16 +27,7 @@ include_directories("${CMAKE_BINARY_DIR}/include")
 #######################
 
 find_package(SDL REQUIRED)
-find_package(Boost 1.45.0 COMPONENTS thread program_options)
-
-# butil_find_lib(
-#   VAR BOOST_PROGOPT_LIB
-#   NAMES "boost_program_options-mt" "boost_program_options"
-# )
-# butil_find_lib(
-#   VAR BOOST_THREAD_LIB
-#   NAMES "boost_thread-mt" "boost_thread"
-# )
+find_package(Boost 1.45.0 COMPONENTS thread program_options REQUIRED)
 
 ###########################
 ## Building normal stuff ##
@@ -45,7 +38,7 @@ add_executable(
   ${BIN_TUNE}
   "src/main.cpp" "src/settings.cpp"
 )
-link_libraries(${BIN_TUNE} ${SDL_LIBRARY} "${BOOST_PROGOPT_LIB}" "${BOOST_THREAD_LIB}")
+target_link_libraries(${BIN_TUNE} ${SDL_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY})
 
 # Do tests
 # add_subdirectory("test")

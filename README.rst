@@ -34,7 +34,8 @@ Installation
 Use cmake as normal.  Dragons here since I never updated the buildsystem for
 quite some time::
 
-  $ sudo aptitude install libsdl1.2-dev libboost-program-options-dev cmake
+  $ sudo aptitude install libsdl1.2-dev libboost-program-options-dev cmake \
+    libboost-thread-dev
   $ mkdir _build
   $ cd _build
   $ cmake ..
