@@ -3,8 +3,8 @@
 \brief main()
 */
 
-#include <bdbg/trace/short_macros.hpp>
-#include <bdbg/trace/static_definitions.hpp>
+// #include <bdbg/trace/short_macros.hpp>
+// #include <bdbg/trace/static_definitions.hpp>
 
 #include <tune_config.hpp>
 
@@ -21,9 +21,9 @@
 #include <cstring>
 #include <csignal>
 
-#include <bdbg/trace/crash_detection.hpp>
+// #include <bdbg/trace/crash_detection.hpp>
 
-bdbg::trace::crash_detector cd;
+// bdbg::trace::crash_detector cd;
 
 
 // TODO:

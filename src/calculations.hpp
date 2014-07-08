@@ -9,7 +9,7 @@
 #include <cmath>
 #include <limits>
 
-#include <bdbg/trace/short_macros.hpp>
+// #include <bdbg/trace/short_macros.hpp>
 
 #include "sdl.hpp"
 

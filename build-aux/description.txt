@@ -1,3 +1,0 @@
-Tune is a simple command-line tool for generating sine waves of a given note
-or frequency it uses SDL to output and can dump the raw samples to a file.  
-Not much more to say :)
