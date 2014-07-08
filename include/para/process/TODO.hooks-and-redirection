@@ -1,0 +1,56 @@
+There is now a problem with the hooks class: in that it is no-longer compatible
+with the generic hooks.  I have left in compatibility code which keep them as 
+fork hooks.
+
+Requirements:
+
+- completely C++ api for redirecting with unix_fork and unix_named_process
+- optionally the same level of checking for an exec
+- optionally the same level of checking for a pipe.
+
+Options:
+
+- remove them as a public api
+- make the redirectors public for unix.
+  - that are dangerous without the guaranteed fork hooks
+- make a new public api which helps us do error-checked redirection.
+  - basically just means expose failure_pipe.
+  - I would need to make a safer API than that, though (eg, the read_error
+    should be replaced by an object like failure_read rd(failpipe); which
+    requires the reading and ensures we can't access the error data until
+    its read.
+  - the hook adaptor needs to be exposed.
+  - example of redirection with a fork:
+    
+      // Has a failure pipe internally.   We can do that because we don't need
+      // to give the failpipe to the onfail functor (there isn't an onfail!).
+      redirect_checker hooks(stdin_redirect(p));
+      unix_fork f(func, hooks);
+      checked_redirect::result r(hooks);  
+
+  - this leaves the problem of named_process
+
+      // Has a failure pipe internally.   We can do that because we don't need
+      // to give the failpipe to the onfail functor (there isn't an onfail!).
+      fork_checker hooks; // optional: (stdin_redirect(p));
+      unix_named_process p(func, hooks, exec_checker(hooks));
+      checked_redirect::result r(hooks);  
+
+  - hum.  I suppose that's not too bad.  I already have the code for it, except
+    I need a little more friendly api.
+- how about this:
+
+    ipc_pipe pi;
+    process pr(bin, pi.stdin_redirector());
+
+  - removes entire public API
+  - how do you do a both redirection?  Inconsistent, now.
+
+
+Further stuff:
+
+- lots of crap can be removed from the ipc pipe once this is done
+- we can remove the inheritance stuff from win32 pipes and do it in the
+  constructor of named_process_win32.
+- all the portability stuff in unix redirections can be removed; same for unix
+  pipe.

@@ -1,0 +1,4 @@
+There is an inconsistency regarding the return values in status.  The value for
+exited is false on unix if the program crashes, but it always true on windows.
+
+See mod_named_process test.

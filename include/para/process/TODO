@@ -1,0 +1,50 @@
+Design fixes:
+
+- implement new version of binary specification (see TODO.binar*).  Summary:
+  - re-define tags
+  - define pretty aliases
+  - handle tags in process classes
+    - searching
+    - args
+    - environment (sort of)
+  - make something which causes compile fail when both platforms don't implement 
+    the same tags.
+- there are no nothrow constructors/functions except for fork.  This is an
+  inconsistent design.  Also, the nothrow stuff is not documented.   I think 
+  just remove it for now?
+- fix hooks and redirection wrt new redirection API in unix (redirecting error
+  checking hooks are not the same as generic hooks any more).  See TODO.hooks*
+  but mostly this is a new design issue.
+
+Unfinished designs:
+
+- setting environment vars 
+  - modular improvment -- should be just implement the overload for a tag
+  - note: this won't work until the binary specification thing is done
+  - see TODO.environment*
+
+Improvements:
+
+- add a process_exists function (I already implemented it for the process
+  constructors)
+- concept checking/coverage
+  - see ../TODO.concept*
+  - follow whatever locking does, because I don't know how this will work yet.
+  - I must test all my portability classes conform to a concept, even if I 
+    don't make those concepts public.
+
+Bugs:
+
+- eg_process fails because it attempts to open process num 1.
+- the binary specs return NULL instead of {NULL}.  This should get fixed by the
+  new design.
+- the win32 redirectors are disabling inheritance for pipe fds which *might*
+  need to be inherited.
+  - crap I wrote this somewhere, but I think the answer is to turn it off in the 
+    constructor of process and then turn it back on again straight afterwards.
+  - so I can get rid of that stuff from the pipe
+- on windows you can copy class process.  This cannot be allowed because you 
+  end up with two references to the same handle.
+- windows named process could check for more errors to distinguish program vs. 
+  create errors.
+

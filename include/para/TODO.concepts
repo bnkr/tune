@@ -1,0 +1,39 @@
+* Concepts
+
+Process checks:
+
+- I need a "compile succeeds" unit test.  Then I can do archetype coverage in a
+  proper file instead of putting it in a concept, which is not really what 
+  you're suppose to have.
+
+Organisational things to think about:
+
+- where do the concepts go?  Users need these for concept checking their own
+  functions.
+- where to the archetypes go?  Users need these for unit tests.
+
+Variable depending types:
+
+- eg, the monitor requires a different SyncTuple type depending on the
+  condition.  
+  - do I make separate concepts for each of the locks it takes?  Eg,
+
+    template<class LockType, class Time>
+    monitor(MonitorTuple &mt, Time &both_time) {
+      BOOST_CONCEPT_ASSERT((MonitorTuple<MonitorTuple>));
+      BOOST_CONCEPT_ASSERT((TimedLockGuard<LockType>));
+      BOOST_CONCEPT_ASSERT((TimedLockable<MonitorTuple::mutex_type>));
+      BOOST_CONCEPT_ASSERT((TimedWaitable<MonitorTuple::condition_type>));
+    }
+   
+    This doesn't seem objectionable to me.
+
+  - the *real* problem that you can't write an archetype; or more accurately, 
+    you have to write loads of archetypes.  
+  - Maybe you write a TimeableLockMonitorTuple... 
+    - saves all the asserts
+    - means more concepts to doc
+    - but that's ok because you need to doc the requirements anyway
+    - 
+
+

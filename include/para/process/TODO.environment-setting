@@ -1,0 +1,23 @@
+It doesn't work at all on windows, and it only works without a path search
+on unix.  Therefore, I could porbably make a shared implementation to get
+environment working.
+
+In unix:
+
+- using a new exec functor for this one tag type
+- call setenv a bunh of times
+
+In windows:
+
+- coppy the current envronment
+- add the new assignments (probably checking for duplicates which means I
+ probaly need to copy the whole thing)
+- create proc
+- delete[] new env
+
+I should of course warn that it's slow.
+
+  LPTCH WINAPI GetEnvironmentStrings(void);
+
+Also, why copy the current environment?  Is that really part of it or are we 
+assigning a completely new one?

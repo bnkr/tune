@@ -1,0 +1,57 @@
+Monitor design additions:
+
+- see TODO above deferred monitor
+  - add checking strategy
+    - store in monitor?
+      - needs template parameter => complicated
+    - explicitly pass to head as well as cons?
+      - verbose
+      - could be defaulted (means billions of overloads tho...)
+      - more flexible
+  - checks are defaulted to no checking in deferred_ and checking in 
+    others
+  - rename checked monitor to monitor (remove existing monitor) and
+    give it the check strategy
+  - document why this exists (to be more flexible and reduce the virtually
+    identical but infrequently used classes)
+  - whole thing is tricky and needs to be thought through.  I think I need
+    to prototype the whole thing, which is a bit of a shame.  The idea is 
+    that I really need to remove the multiple redundant classes... and the
+    hard part is how do you default the checking so that it's not utterly
+    confusing to the user.
+
+Docs:
+
+- document MonitorTraits
+- examples of shared locks/upgrade locks because it's not clear how it's
+  working at all.
+
+Minor design fixes:
+
+- remove MonitorTraits for classes where it's not needed (timed monitors
+  basically).  Also I guess it should have a differnet name... it's not really 
+  a traits class.  MonitorSelectors?
+- better name for traits type (traits.hpp)
+  - meta_types
+  - type_generator
+  - types
+  - sync_types
+- probably move locked<T> and monitored<T> to an access module
+- better name for the monitor_bind -- condition_bind ?
+- I made a quick fix to deal with reference types in tuples, and I ended up with
+  an extra typedef: held_type.  I should really get rid of it or make it private... 
+  something.  Need to document it anyway.
+  - either mingw or g++ breaks... I'm sure I can do *something* with remove ref.
+  - gcc-mingw32 is at 4.4.3, which i whatt I want... bleh... I guess that's
+    what I need
+  - was there a fork or something?
+  - what does the standard say?!  Maybe I should try and fix it anyway...
+
+New parts:
+
+- design and implement monitored<T> (monitored.hpp)
+- design and implement bailable locked<T> (locked.hpp)
+- note: look at the access ptrs in the old para stuff in _notes
+- share code between locked and monitored
+- design and implement pipes (see main TODO file -- basically there's a lot of
+  copying...)

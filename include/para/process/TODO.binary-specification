@@ -1,0 +1,86 @@
+Summary:
+  I am decided on using the tag-based spec and some pretty aliases.  Especially
+  I am happy with doing the string/array conversion in the process class.
+
+  There is still difficulty with the NULL array.
+
+--
+
+One more problem: execve takes arrays -- it must not have nulls, eg
+
+  execve("binary", NULL, NULL);
+
+Is not ok (it will segv).
+
+Well, I have
+
+  char **member_;
+
+If I set member_ = NULL and return (char **)&member_ it would work I think...
+but that's tricky and it needs an if.
+
+I think the only solution is to pass an entire array at construction...
+
+NB: I need to put this stuff in the unit tests.
+
+Options:
+
+  // Initial version:
+  proc (binary().args(array));
+
+  // Explicitly declare it and require the reference.  A tiny bit confusing due 
+  // to the speciailisations.
+  char *argv[] = {NULL};
+  binary b("prog", argv);
+
+  // Explicitly declare but point to an empty argument in the constructor.  This
+  // is the only way to have the args() method.
+  binary b("prog").args(argv);
+
+  // I'm not sure how the wrapper type really helps me, but it might be nice for
+  // string vs. array based.
+  binary b("prod").args(wrapper_type(argv));
+
+  // System arguments converter -- the binary class would be different, then.
+  // Another private user-used API hm.  Why not do the conversion in the binary
+  // object?  It seems increasingly likely that this must happen.  If there is
+  // ever a system conversion then binary has to be non-portable anyway because,
+  // on windows you have the exact path vs. the searched command_line.  Finally,
+  // it's not exactly clear how I have the empty array sorted out without a
+  // runtime if when the args were never assigned anyway.
+  binary b("prog").args(convert_to_system_from<string>(arg));
+
+  // Most direct... still there are conversion implications of course.  
+  binary b("prog").string_args(str).args(array);
+  // How does this work though?   I suppose that has to be the *internal*
+  // implementation in this case.  What about char*, though?  
+  binary<string> b("prog").args(array);
+
+  // Converter member functions.  Problem is the args() accessor returns
+  // something different on the different platforms.
+  binary_win32 b("prog").args<string>(&str); //< null conversion
+  binary_unix b("prog").args<vector>(&vec); //< null conversion
+
+  // Tag the binary class with string_args or vector_args and deal with the
+  // whole messy business in the process object.  It's still fucked that 
+  // args(void) returns different params, but that's not so bad since it is
+  // strongly dependant on Container...
+  //
+  // So from the current method, I basically just need to remove the conversion
+  // stuff in the storage classes I implemented.
+  //
+  // I think this is essentially the best I can get.  It's essentially
+  // transparent to the user, and it abstracts messy conversion stuff into the
+  // non-portable class.
+  template<class Container>
+  class bin {
+    typedef arg_tag_generator<Container>::type args_tag;
+  };
+
+I must document this: "in order to avoid penalising stuff that doesn't need to 
+be portable I used tags blah blah non-portable encapsulation etc".
+
+--
+
+Another point: why not automatically add the program name to the arguments?
+
